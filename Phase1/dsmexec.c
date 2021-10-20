@@ -1,4 +1,5 @@
 #include "common_impl.h"
+#include "dsmexec_utils.h"
 
 /* variables globales */
 
@@ -32,7 +33,8 @@ int main(int argc, char *argv[])
 {
   if (argc < 3){
     usage();
-  } else {       
+  } else {    
+       
      pid_t pid;
      int num_procs = 0;
      int i;
@@ -44,6 +46,14 @@ int main(int argc, char *argv[])
      /* 1- on recupere le nombre de processus a lancer */
      /* 2- on recupere les noms des machines : le nom de */
      /* la machine est un des elements d'identification */
+     char *machine_name;
+	  num_procs = read_machine_names(argv[1], &machine_name);
+
+		for(int i = 0; i<num_procs; i++){
+			printf("machine name : %s\n", machine_name+MAX_STR*i);
+		}
+
+     free(machine_name);
      
      /* creation de la socket d'ecoute */
      /* + ecoute effective */ 
