@@ -1,3 +1,6 @@
+#ifndef __COMMON_IMPL_H
+#define __COMMON_IMPL_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,3 +45,5 @@ struct dsm_proc {
   dsm_proc_conn_t connect_info;
 };
 typedef struct dsm_proc dsm_proc_t;
+
+#endif

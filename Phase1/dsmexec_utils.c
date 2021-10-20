@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-int read_machine_names(char *path, char **buffer){
+int read_machine_names(char *path, dsm_proc_t **dsm_procs){
 
     int err;
     int nbr_lines = 0;
@@ -18,42 +18,41 @@ int read_machine_names(char *path, char **buffer){
     }
 
     // Recuperer nbr_lines
-    char c;
+    char cp;
+    char c = '\n';
     do{
+        cp = c;
         err = read(fd, (void *)&c, sizeof(char));
         if(err == 0){
             break;
         }
-        if(c == '\n')
+        if(c == '\n'&& cp != '\n')
             nbr_lines++;
     }while(1);
 
-    *buffer = malloc(nbr_lines * MAX_STR * sizeof(char));
-    if(*buffer == NULL){
+    *dsm_procs = malloc(nbr_lines * sizeof(dsm_proc_t));
+    if(*dsm_procs == NULL){
         ERROR_EXIT("read_machine_names malloc");
     }
 
-    close(fd);
-
-    fd = open(path, O_RDONLY | O_EXCL);
-    if(fd == -1){
-        ERROR_EXIT("read_machine_names open");
-    }
+    lseek(fd, 0, SEEK_SET);
 
     int machine = 0;
     int index_in_name=0;
+    c = '\0';
     do{
+        cp = c;
         err = read(fd, (void *)&c, sizeof(char));
         if(err == 0){
             break;
         }
         
-        if(c == '\n'){
-            (*buffer)[machine*MAX_STR+index_in_name] = '\0';
+        if(c == '\n' && cp != '\n'){
+            (*dsm_procs)[machine].connect_info.machine[index_in_name] = '\0';
             machine++;
             index_in_name = 0;
-        }else{
-            (*buffer)[machine*MAX_STR+index_in_name] = c;
+        }else if(c != '\n'){
+            (*dsm_procs)[machine].connect_info.machine[index_in_name] = c;
             index_in_name++;
         }
 
