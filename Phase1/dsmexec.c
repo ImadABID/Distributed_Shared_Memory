@@ -57,6 +57,11 @@ int main(int argc, char *argv[])
      
      /* creation de la socket d'ecoute */
      /* + ecoute effective */ 
+      int listen_fd = -1;
+      if (-1 == (listen_fd = socket_listen_and_bind(num_procs))) {
+         printf("Could not create, bind and listen properly\n");
+         return 1;
+      }
      
      /* creation des fils */
      for(i = 0; i < num_procs ; i++) {
