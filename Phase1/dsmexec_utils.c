@@ -49,6 +49,7 @@ int read_machine_names(char *path, dsm_proc_t **dsm_procs){
         
         if(c == '\n' && cp != '\n'){
             (*dsm_procs)[machine].connect_info.machine[index_in_name] = '\0';
+            //printf("func : %s\n", (*dsm_procs)[machine].connect_info.machine);
             machine++;
             index_in_name = 0;
         }else if(c != '\n'){
@@ -62,4 +63,20 @@ int read_machine_names(char *path, dsm_proc_t **dsm_procs){
 
     return nbr_lines;
 
+}
+
+void read_from_pipe(int pipe_fd, char *buffer){
+    char c;
+    int err;
+    int buffer_index = 0;
+
+    err = read(pipe_fd, &c, 1);
+    while(buffer_index < PRINTF_MAX_BUFFER-1 && err == 1 && c != '\n'){
+
+        buffer[buffer_index++] = c;
+
+        err = read(pipe_fd, &c, 1);
+    }
+
+    buffer[buffer_index] = '\0';
 }

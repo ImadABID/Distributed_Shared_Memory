@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 /* autres includes (eventuellement) */
 
@@ -21,6 +22,8 @@
 
 #define MAX_STR  (1024)
 typedef char maxstr_t[MAX_STR];
+
+#define PRINTF_MAX_BUFFER 10*1024
 
 /* definition du type des infos */
 /* de connexion des processus dsm */
@@ -40,9 +43,11 @@ typedef struct dsm_proc_conn dsm_proc_conn_t;
 
 /* definition du type des infos */
 /* d'identification des processus dsm */
-struct dsm_proc {   
+struct dsm_proc {
   pid_t pid;
   dsm_proc_conn_t connect_info;
+  int stdout_fd; // to read from
+  int stderr_fd; // to read from
 };
 typedef struct dsm_proc dsm_proc_t;
 

@@ -1,6 +1,13 @@
 #include "common_impl.h"
 #include "dsmexec_utils.h"
 
+#include <poll.h>
+#include <unistd.h>
+
+#include <sys/types.h>          /* See NOTES */
+#include <sys/socket.h>
+
+
 /* variables globales */
 
 /* un tableau gerant les infos d'identification */
@@ -31,63 +38,84 @@ void sigchld_handler(int sig)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 3){
+
+	if (argc < 3) {
 		usage();
-	} else {    
-			
-		pid_t pid;
-		int num_procs = 0;
-		int i;
-		
-		/* Mise en place d'un traitant pour recuperer les fils zombies*/      
-		/* XXX.sa_handler = sigchld_handler; */
-		
-		/* lecture du fichier de machines */
-		/* 1- on recupere le nombre de processus a lancer */
-		/* 2- on recupere les noms des machines : le nom de */
-		/* la machine est un des elements d'identification */
-		dsm_proc_t *dsm_procs;
-		num_procs = read_machine_names(argv[1], &dsm_procs);
+		exit(EXIT_SUCCESS);
+	}
 
-		for(int i = 0; i<num_procs; i++){
-			printf("machine name : %s\n", dsm_procs[i].connect_info.machine);
+	dsm_proc_t *dsm_procs;
+	int num_procs;
+		
+	pid_t pid; // pour les forks
+	
+	int i; // pour les boucles for
+	
+	/* Mise en place d'un traitant pour recuperer les fils zombies*/      
+	/* XXX.sa_handler = sigchld_handler; */
+	
+	/* lecture du fichier de machines */
+	/* 1- on recupere le nombre de processus a lancer */
+	/* 2- on recupere les noms des machines : le nom de */
+	/* la machine est un des elements d'identification */
+	
+	num_procs = read_machine_names(argv[1], &dsm_procs);
+	printf("num_procs = %d\n", num_procs);
+	
+	
+	/* creation de la socket d'ecoute */
+	/* + ecoute effective */ 
+
+
+	// pipe definition
+
+	int tab_stdout_pipe[2];
+	int tab_stderr_pipe[2];
+
+	/* creation des fils */
+	for(i = 0; i < num_procs ; i++) {
+
+		/* creation du tube pour rediriger stdout */
+		pipe(tab_stdout_pipe);
+		dsm_procs[i].stdout_fd = tab_stdout_pipe[0];
+		
+		/* creation du tube pour rediriger stderr */
+		pipe(tab_stderr_pipe);
+		dsm_procs[i].stderr_fd = tab_stderr_pipe[0];
+		
+		pid = fork();
+		if(pid == -1) ERROR_EXIT("fork");
+
+		dsm_procs[i].pid = pid;
+		
+		if (pid == 0) { /* fils */	
+			
+			/* redirection stdout */
+			dup2(tab_stdout_pipe[1], STDOUT_FILENO);
+			
+			/* redirection stderr */	      	      
+			dup2(tab_stderr_pipe[1], STDERR_FILENO);
+
+			fprintf(stderr, "Fake error \n");
+
+			/* Creation du tableau d'arguments pour le ssh */ 
+			char *newargv[20] = {"echo", "Hello World !", NULL};
+
+			/* jump to new prog : */
+			/* execvp("ssh",newargv); */
+			execvp("echo", newargv);
+
+		} else  if(pid > 0) { /* pere */
+
+			close(tab_stdout_pipe[1]);
+			close(tab_stderr_pipe[1]);
+
+			num_procs_creat++;
 		}
-
-		free(dsm_procs);
-		
-		/* creation de la socket d'ecoute */
-		/* + ecoute effective */ 
-		
-		/* creation des fils */
-		for(i = 0; i < num_procs ; i++) {
-		
-			/* creation du tube pour rediriger stdout */
-			
-			/* creation du tube pour rediriger stderr */
-			
-			pid = fork();
-			if(pid == -1) ERROR_EXIT("fork");
-			
-			if (pid == 0) { /* fils */	
-				
-				/* redirection stdout */	      
-				
-				/* redirection stderr */	      	      
-				
-				/* Creation du tableau d'arguments pour le ssh */ 
-				
-				/* jump to new prog : */
-				/* execvp("ssh",newargv); */
-
-			} else  if(pid > 0) { /* pere */		      
-				/* fermeture des extremites des tubes non utiles */
-				num_procs_creat++;	      
-			}
-		}
-		
-		
-		for(i = 0; i < num_procs ; i++){
-		
+	}
+	
+	for(i = 0; i < num_procs ; i++){
+	
 		/* on accepte les connexions des processus dsm */
 		
 		/*  On recupere le nom de la machine distante */
@@ -100,51 +128,92 @@ int main(int argc, char *argv[])
 		/* On recupere le numero de port de la socket */
 		/* d'ecoute des processus distants */
 			/* cf code de dsmwrap.c */  
-		}
-
-		/***********************************************************/ 
-		/********** ATTENTION : LE PROTOCOLE D'ECHANGE *************/
-		/********** DECRIT CI-DESSOUS NE DOIT PAS ETRE *************/
-		/********** MODIFIE, NI DEPLACE DANS LE CODE   *************/
-		/***********************************************************/
-		
-		/* 1- envoi du nombre de processus aux processus dsm*/
-		/* On envoie cette information sous la forme d'un ENTIER */
-		/* (IE PAS UNE CHAINE DE CARACTERES */
-		
-		/* 2- envoi des rangs aux processus dsm */
-		/* chaque processus distant ne reçoit QUE SON numéro de rang */
-		/* On envoie cette information sous la forme d'un ENTIER */
-		/* (IE PAS UNE CHAINE DE CARACTERES */
-		
-		/* 3- envoi des infos de connexion aux processus */
-		/* Chaque processus distant doit recevoir un nombre de */
-		/* structures de type dsm_proc_conn_t égal au nombre TOTAL de */
-		/* processus distants, ce qui signifie qu'un processus */
-		/* distant recevra ses propres infos de connexion */
-		/* (qu'il n'utilisera pas, nous sommes bien d'accords). */
-
-		/***********************************************************/
-		/********** FIN DU PROTOCOLE D'ECHANGE DES DONNEES *********/
-		/********** ENTRE DSMEXEC ET LES PROCESSUS DISTANTS ********/
-		/***********************************************************/
-		
-		/* gestion des E/S : on recupere les caracteres */
-		/* sur les tubes de redirection de stdout/stderr */     
-		/* while(1)
-				{
-					je recupere les infos sur les tubes de redirection
-					jusqu'à ce qu'ils soient inactifs (ie fermes par les
-					processus dsm ecrivains de l'autre cote ...)
-			
-				};
-			*/
-
-		/* on attend les processus fils */
-		
-		/* on ferme les descripteurs proprement */
-		
-		/* on ferme la socket d'ecoute */
 	}
-		exit(EXIT_SUCCESS);
+
+	/***********************************************************/ 
+	/********** ATTENTION : LE PROTOCOLE D'ECHANGE *************/
+	/********** DECRIT CI-DESSOUS NE DOIT PAS ETRE *************/
+	/********** MODIFIE, NI DEPLACE DANS LE CODE   *************/
+	/***********************************************************/
+	
+	/* 1- envoi du nombre de processus aux processus dsm*/
+	/* On envoie cette information sous la forme d'un ENTIER */
+	/* (IE PAS UNE CHAINE DE CARACTERES */
+	
+	/* 2- envoi des rangs aux processus dsm */
+	/* chaque processus distant ne reçoit QUE SON numéro de rang */
+	/* On envoie cette information sous la forme d'un ENTIER */
+	/* (IE PAS UNE CHAINE DE CARACTERES */
+	
+	/* 3- envoi des infos de connexion aux processus */
+	/* Chaque processus distant doit recevoir un nombre de */
+	/* structures de type dsm_proc_conn_t égal au nombre TOTAL de */
+	/* processus distants, ce qui signifie qu'un processus */
+	/* distant recevra ses propres infos de connexion */
+	/* (qu'il n'utilisera pas, nous sommes bien d'accords). */
+
+	/***********************************************************/
+	/********** FIN DU PROTOCOLE D'ECHANGE DES DONNEES *********/
+	/********** ENTRE DSMEXEC ET LES PROCESSUS DISTANTS ********/
+	/***********************************************************/
+
+	
+	/* gestion des E/S : on recupere les caracteres */
+	/* sur les tubes de redirection de stdout/stderr */     
+
+	struct pollfd pollfds[2*num_procs];
+	
+    for(int i = 0; i < num_procs; i++){
+
+		//stdout
+        pollfds[2*i].fd = dsm_procs[i].stdout_fd;
+        pollfds[2*i].events = POLLIN;
+        pollfds[2*i].revents = 0;
+
+		// stderr
+		pollfds[2*i+1].fd = dsm_procs[i].stderr_fd;
+        pollfds[2*i+1].events = POLLIN;
+        pollfds[2*i+1].revents = 0;
+
+    }
+    
+    char buffer[PRINTF_MAX_BUFFER];
+
+    while(1){
+        poll(pollfds, 2*num_procs, -1);
+        for(int i = 0; i < num_procs; i++){
+			//stdout
+            if(pollfds[2*i].revents & POLLIN){
+                read_from_pipe(pollfds[2*i].fd, buffer);
+				printf(
+					"[Proc %d\t: %s\t: stdout] %s\n",
+					dsm_procs[i].pid,
+					dsm_procs[i].connect_info.machine,
+					buffer
+				);
+                pollfds[2*i].revents = 0;
+            }
+
+			//stderr
+            if(pollfds[2*i+1].revents & POLLIN){
+                read_from_pipe(pollfds[2*i+1].fd, buffer);
+				printf(
+					"[Proc %d\t: %s\t: stderr] %s\n",
+					dsm_procs[i].pid,
+					dsm_procs[i].connect_info.machine,
+					buffer
+				);
+                pollfds[2*i+1].revents = 0;
+            }
+        }
+    }
+
+	/* on attend les processus fils */
+	
+	/* on ferme les descripteurs proprement */
+	
+	/* on ferme la socket d'ecoute */
+
+	free(dsm_procs);
+	exit(EXIT_SUCCESS);
 }

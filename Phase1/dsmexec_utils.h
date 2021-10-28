@@ -10,5 +10,6 @@ Param:
 returns : number of files.
 */
 int read_machine_names(char *path, dsm_proc_t **dsm_procs);
+void read_from_pipe(int pipe_fd, char *buffer);
 
 #endif
