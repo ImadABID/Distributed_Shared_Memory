@@ -1,5 +1,19 @@
-#include "common_impl.h"
 #include "dsmexec_utils.h"
+#include <arpa/inet.h>
+#include <err.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <time.h>
+#include <assert.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "common_impl.h"
 
 /* variables globales */
 
@@ -35,9 +49,13 @@ int main(int argc, char *argv[])
     usage();
   } else {    
        
+     dsm_proc_t *dsm_procs;
      pid_t pid;
      int num_procs = 0;
      int i;
+     char buff[MAX_STR];
+     int length;
+     int port; 
      
      /* Mise en place d'un traitant pour recuperer les fils zombies*/      
      /* XXX.sa_handler = sigchld_handler; */
@@ -53,12 +71,13 @@ int main(int argc, char *argv[])
 			printf("machine name : %s\n", machine_name+MAX_STR*i);
 		}
 
+
      free(machine_name);
      
      /* creation de la socket d'ecoute */
      /* + ecoute effective */ 
       int listen_fd = -1;
-      if (-1 == (listen_fd = socket_listen_and_bind(num_procs))) {
+      if (-1 == (listen_fd = socket_listen_and_bind(num_procs,port))) {
          printf("Could not create, bind and listen properly\n");
          return 1;
       }
@@ -89,22 +108,36 @@ int main(int argc, char *argv[])
 	   num_procs_creat++;	      
 	}
      }
-     
    
      for(i = 0; i < num_procs ; i++){
 	
 	/* on accepte les connexions des processus dsm */
+				struct sockaddr_in csin;
+				socklen_t size = sizeof(csin);
+				if (-1 == (dsm_procs[i].connect_info.fd = accept(listen_fd, (struct sockaddr *)&csin, &size))) {
+					perror("Accept");
+				}
 	
-	/*  On recupere le nom de la machine distante */
-	/* 1- d'abord la taille de la chaine */
-	/* 2- puis la chaine elle-meme */
-
+	/*  On recupere le nom de la machine distante */	
+	/* 1- puis la chaine elle-meme */
+            memset(buff,0,MAX_STR);
+				if (recv(dsm_procs[i].connect_info.fd , buff, MAX_STR, 0) <= 0) {
+					ERROR_EXIT("revc");
+				}
        
 	/* On recupere le pid du processus distant  (optionnel)*/
-	
+            pid_t pid_proc = 0;
+            if (recv(dsm_procs[i].connect_info.fd , &pid_proc, sizeof(int), 0) <= 0) {
+					ERROR_EXIT("revc");
+				}
+            dsm_procs[i].pid = pid_proc;
 	/* On recupere le numero de port de la socket */
 	/* d'ecoute des processus distants */
         /* cf code de dsmwrap.c */  
+            int port_proc = 0;
+            if (recv(dsm_procs[i].connect_info.fd , port_proc, sizeof(int), 0) <= 0) {
+					ERROR_EXIT("revc");
+				}
      }
 
      /***********************************************************/ 

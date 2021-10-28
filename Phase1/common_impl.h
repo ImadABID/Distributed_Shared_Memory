@@ -25,7 +25,7 @@ struct dsm_proc_conn  {
    int      rank;
    maxstr_t machine;
    int      port_num;
-   int      fd; 
+   int      fd;
    int      fd_for_exit; /* special */  
 };
 
@@ -42,3 +42,12 @@ struct dsm_proc {
   dsm_proc_conn_t connect_info;
 };
 typedef struct dsm_proc dsm_proc_t;
+
+/*
+Param:
+    Nombre de processus.
+returns : Create listening socket
+*/
+int socket_listen_and_bind(int Nb_proc,int port);
+
+int socket_and_connect(char *hostname, char *port);
