@@ -20,7 +20,7 @@
 /* de declarer le prototype de ces nouvelles */
 /* fonctions dans common_impl.h */
 
-int socket_listen_and_bind(int Nb_proc,int port) {
+int socket_listen_and_bind(int Nb_proc,int* port) {
 	int listen_fd = -1;
 	if (-1 == (listen_fd = socket(AF_INET, SOCK_STREAM, 0))) {
 		perror("Socket");
@@ -65,7 +65,7 @@ int socket_listen_and_bind(int Nb_proc,int port) {
                 perror("getsockname");
             else
                 printf("Binding to %s on port %d\n",inet_ntoa(sin.sin_addr),ntohs(sin.sin_port));
-			port = ntohs(sin.sin_port);
+			*port = ntohs(sin.sin_port);
 			freeaddrinfo(res);
 			return listen_fd;
 		}
