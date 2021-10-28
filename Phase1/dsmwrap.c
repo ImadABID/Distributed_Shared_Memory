@@ -4,7 +4,10 @@
 #include <sys/socket.h>
 
 int main(int argc, char **argv)
-{   
+{
+
+   printf("dsmwrap was launched\n");
+
    /* processus intermediaire pour "nettoyer" */
    /* la liste des arguments qu'on va passer */
    /* a la commande a executer finalement  */

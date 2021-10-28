@@ -54,7 +54,6 @@ int read_machine_names(char *path, dsm_proc_t **dsm_procs){
         
         if(c == '\n' && cp != '\n'){
             (*dsm_procs)[machine].connect_info.machine[index_in_name] = '\0';
-            //printf("func : %s\n", (*dsm_procs)[machine].connect_info.machine);
             machine++;
             index_in_name = 0;
         }else if(c != '\n'){

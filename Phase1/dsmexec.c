@@ -117,11 +117,10 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Fake error \n");
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"echo", "Hello World !", NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "echo", "Hello World !", NULL};
 
 			/* jump to new prog : */
-			/* execvp("ssh",newargv); */
-			execvp("echo", newargv);
+			execvp("ssh", newargv);
 
 		} else  if(pid > 0) { /* pere */
 
@@ -134,6 +133,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	printf("start accepting\n");
+
 	for(i = 0; i < num_procs ; i++){
 	
 		/* on accepte les connexions des processus dsm */
@@ -142,6 +143,8 @@ int main(int argc, char *argv[])
 		if (-1 == (dsm_procs[i].connect_info.fd = accept(listen_fd, (struct sockaddr *)&csin, &size))) {
 			perror("Accept");
 		}
+
+		printf("a machine was accepted\n");
 	
 		/*  On recupere le nom de la machine distante */	
 		/* 1- puis la chaine elle-meme */
