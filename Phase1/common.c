@@ -50,8 +50,6 @@ int socket_listen_and_bind(int Nb_proc,int* port) {
 	tmp = res;
 	while (tmp != NULL) {
 		if (tmp->ai_family == AF_INET) {
-			struct sockaddr_in *sockptr = (struct sockaddr_in *)(tmp->ai_addr);
-			struct in_addr local_address = sockptr->sin_addr;
 			
 			if (-1 == bind(listen_fd, tmp->ai_addr, tmp->ai_addrlen)) {
 				perror("Binding");

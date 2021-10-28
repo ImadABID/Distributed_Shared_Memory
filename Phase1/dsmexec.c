@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	int i; // pour les boucles for
 
 	char buff[MAX_STR];
-    int *port; 
+    int port; 
 	
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/      
 	/* XXX.sa_handler = sigchld_handler; */
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	/* + ecoute effective */ 
 
 	int listen_fd = -1;
-	if (-1 == (listen_fd = socket_listen_and_bind(num_procs,port))) {
+	if (-1 == (listen_fd = socket_listen_and_bind(num_procs,&port))) {
 		printf("Could not create, bind and listen properly\n");
 		return 1;
 	}
@@ -105,8 +105,6 @@ int main(int argc, char *argv[])
 		
 		pid = fork();
 		if(pid == -1) ERROR_EXIT("fork");
-
-		dsm_procs[i].pid = pid;
 		
 		if (pid == 0) { /* fils */	
 			
@@ -126,6 +124,8 @@ int main(int argc, char *argv[])
 			execvp("echo", newargv);
 
 		} else  if(pid > 0) { /* pere */
+
+			dsm_procs[i].pid = pid;
 
 			close(tab_stdout_pipe[1]);
 			close(tab_stderr_pipe[1]);
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
        
 		/* On recupere le pid du processus distant  (optionnel)*/
         pid_t pid_proc = 0;
-        if (recv(dsm_procs[i].connect_info.fd , &pid_proc, sizeof(int), 0) <= 0) {
+        if (recv(dsm_procs[i].connect_info.fd , &pid_proc, sizeof(pid_t), 0) <= 0) {
 			ERROR_EXIT("revc");
 		}
         dsm_procs[i].pid = pid_proc;
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 		/* d'ecoute des processus distants */
         /* cf code de dsmwrap.c */  
         int port_proc = 0;
-        if (recv(dsm_procs[i].connect_info.fd , port_proc, sizeof(int), 0) <= 0) {
+        if (recv(dsm_procs[i].connect_info.fd , &port_proc, sizeof(int), 0) <= 0) {
 			ERROR_EXIT("revc");
 		}
     }

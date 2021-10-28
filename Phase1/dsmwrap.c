@@ -1,5 +1,7 @@
 #include "common_impl.h"
 #include "dsmexec_utils.h"
+#include <sys/types.h>
+#include <sys/socket.h>
 
 int main(int argc, char **argv)
 {   
@@ -15,13 +17,13 @@ int main(int argc, char **argv)
 		printf("Could not create socket and connect properly\n");
 		return 1;
 	}
+   /*
    char sock[MAX_STR];
    memset(sock,0,MAX_STR);
    sprintf(sock,"%d",sock_fd);
-   setenv("DSMEXEC_FD",sock,0);
+   setenv("DSMEXEC_FD",sock,0);*/
    
    char buff[MAX_STR];
-   int length;
    /* Envoi du nom de machine au lanceur */             
    memset(buff,0,MAX_STR);
    if ( -1 == (gethostname(buff, MAX_STR))){
@@ -34,7 +36,7 @@ int main(int argc, char **argv)
    /* Envoi du pid au lanceur (optionnel) */
    pid_t pid_wrap = getpid();
 
-   if (send(sock_fd, pid_wrap, sizeof(int), 0) <= 0) {
+   if (send(sock_fd, &pid_wrap, sizeof(int), 0) <= 0) {
       ERROR_EXIT("send");
    }
 
@@ -42,18 +44,24 @@ int main(int argc, char **argv)
    /* connexions avec les autres processus dsm */
    int listen_fd = -1;
    int port;
-   if (-1 == (listen_fd = socket_listen_and_bind(64,port))) {
+   if (-1 == (listen_fd = socket_listen_and_bind(64,&port))) {
       printf("Could not create, bind and listen properly\n");
       return 1;
    }
 
+   /*
    memset(sock,0,MAX_STR);
    sprintf(sock,"%d",listen_fd);
-   setenv("MASTER_FD",sock,0);
+   setenv("MASTER_FD",sock,0);*/
+
    /* Envoi du numero de port au lanceur */
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */
- 
+
+   if (send(sock_fd, &port, sizeof(int), 0) <= 0) {
+      ERROR_EXIT("send");
+   }
+
    /* on execute la bonne commande */
    /* attention au chemin à utiliser ! */
 
