@@ -7,7 +7,7 @@ OPTFLAGS     = -O0
 
 SHELL = /bin/sh
 
-CFLAGS  =   -DREENTRANT -Wunused -Wall -g 
+CFLAGS  =   -DREENTRANT -Wunused -Wall -g -std=gnu99
 CCFLAGS = $(CFLAGS)
 LIBS =  -lpthread
 
@@ -30,8 +30,6 @@ truc: truc.o common.o
 	@-if [ ! -d "bin" ]; then mkdir bin ; fi
 	mv $@ ./bin/
 
-dsmexec_utils.o: dsmexec_utils.c dsmexec_utils.h
-	gcc -o dsmexec_utils.o -c dsmexec_utils.c
 
 clean:
 	@-/bin/rm -f *.o *~ PI* $(EXECS) *.out core 
