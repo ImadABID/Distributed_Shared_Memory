@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Fake error \n");
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", dsmexec_hostname, dsmexec_port_str, "truc", NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str, "~/DSM_bin/truc", NULL};
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);

@@ -30,8 +30,6 @@ truc: truc.o common.o
 	@-if [ ! -d "bin" ]; then mkdir bin ; fi
 	mv $@ ./bin/
 
-# add the line below to ~/.bash_profile :
-# export PATH="$PATH:$HOME/DSM_bin"
 add_dsm_folder : dsmexec dsmwrap truc
 	cp -r bin ~/DSM_bin
 
