@@ -20,7 +20,7 @@
 /* de declarer le prototype de ces nouvelles */
 /* fonctions dans common_impl.h */
 
-int socket_listen_and_bind(int Nb_proc,int* port) {
+int socket_listen_and_bind(int Nb_proc, ushort* port) {
 	int listen_fd = -1;
 	if (-1 == (listen_fd = socket(AF_INET, SOCK_STREAM, 0))) {
 		perror("Socket");

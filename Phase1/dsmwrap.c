@@ -6,7 +6,7 @@
 int main(int argc, char **argv)
 {
 
-   printf("dsmwrap was launched\n");
+   printf("dsmwrap was launched by %s:%s\n", argv[1], argv[2]);
 
    /* processus intermediaire pour "nettoyer" */
    /* la liste des arguments qu'on va passer */
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
    /* Creation de la socket d'ecoute pour les */
    /* connexions avec les autres processus dsm */
    int listen_fd = -1;
-   int port;
+   ushort port;
    if (-1 == (listen_fd = socket_listen_and_bind(64,&port))) {
       printf("Could not create, bind and listen properly\n");
       return 1;

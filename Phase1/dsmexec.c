@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	int i; // pour les boucles for
 
 	char buff[MAX_STR];
-    int port; 
+    ushort port; 
 	
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/      
 	/* XXX.sa_handler = sigchld_handler; */
@@ -82,10 +82,19 @@ int main(int argc, char *argv[])
 	/* + ecoute effective */ 
 
 	int listen_fd = -1;
-	if (-1 == (listen_fd = socket_listen_and_bind(num_procs,&port))) {
+	if (-1 == (listen_fd = socket_listen_and_bind(num_procs, &port))) {
 		printf("Could not create, bind and listen properly\n");
 		return 1;
 	}
+	// dsmexec conn info
+	char dsmexec_hostname[20];
+	char dsmexec_port_str[20];
+	if ( -1 == (gethostname(dsmexec_hostname, 20))){
+      perror("gethostname");
+   	}
+	sprintf(dsmexec_port_str, "%hu", port);
+
+	printf("dsmexec_conn_info : %s:%s\n", dsmexec_hostname, dsmexec_port_str);
 
 	// pipe definition
 
@@ -117,7 +126,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Fake error \n");
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", "truc", NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", dsmexec_hostname, dsmexec_port_str, "truc", NULL};
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);

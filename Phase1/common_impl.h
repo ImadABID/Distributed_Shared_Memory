@@ -56,7 +56,7 @@ Param:
     Nombre de processus.
 returns : Create listening socket
 */
-int socket_listen_and_bind(int Nb_proc,int* port);
+int socket_listen_and_bind(int Nb_proc, ushort* port);
 
 int socket_and_connect(char *hostname, char *port);
 
