@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Fake error \n");
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "echo", "Hello World !", NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", "truc", NULL};
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);
@@ -198,7 +198,9 @@ int main(int argc, char *argv[])
 
 	
 	/* gestion des E/S : on recupere les caracteres */
-	/* sur les tubes de redirection de stdout/stderr */     
+	/* sur les tubes de redirection de stdout/stderr */
+
+	printf("pipes I/O\n");
 
 	struct pollfd pollfds[2*num_procs];
 	
