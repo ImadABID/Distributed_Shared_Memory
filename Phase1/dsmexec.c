@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	int i; // pour les boucles for
 
 	char buff[MAX_STR];
-    int port; 
+    ushort port; 
 	
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/      
 	/* XXX.sa_handler = sigchld_handler; */
@@ -82,31 +82,19 @@ int main(int argc, char *argv[])
 	/* + ecoute effective */ 
 
 	int listen_fd = -1;
-	if (-1 == (listen_fd = socket_listen_and_bind(num_procs,&port))) {
+	if (-1 == (listen_fd = socket_listen_and_bind(num_procs, &port))) {
 		printf("Could not create, bind and listen properly\n");
 		return 1;
 	}
-	char port_str[MAX_STR];
-	memset(port_str,0,MAX_STR);
-	sprintf(port_str,"%hu",port);
-	printf("port : %s\n",port_str);
-	char hostbuffer[256];
-	char *IPbuffer;
-	struct hostent *host_entry;
-	int hostname;
+	// dsmexec conn info
+	char dsmexec_hostname[20];
+	char dsmexec_port_str[20];
+	if ( -1 == (gethostname(dsmexec_hostname, 20))){
+      perror("gethostname");
+   	}
+	sprintf(dsmexec_port_str, "%hu", port);
 
-	// To retrieve hostname
-    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
-
-	// To retrieve host information
-	host_entry = gethostbyname(hostbuffer);
-
-	// To convert an Internet network
-	// address into ASCII string
-	IPbuffer = inet_ntoa(*((struct in_addr*)host_entry->h_addr_list[0]));
-
-	printf("Hostname: %s\n", hostbuffer);
-	printf("Host IP: %s\n", IPbuffer);
+	printf("dsmexec_conn_info : %s:%s\n", dsmexec_hostname, dsmexec_port_str);
 
 	// pipe definition
 
@@ -137,12 +125,24 @@ int main(int argc, char *argv[])
 
 			fprintf(stderr, "Fake error \n");
 
+			char truc[MAX_STR];
+			memset(truc,0,MAX_STR);
+			strcpy(truc,"~/DSM_bin/");
+			strcat(truc,argv[2]);
+			
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", IPbuffer,port, NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str,truc};
 
+			/* ajout des arguments de truc */
+			int j;
+			for (j = 0;j<argc-3;j++){
+				newargv[j+6] = argv[j+3];
+			}
+			newargv[j+6] = NULL;
 			/* jump to new prog : */
 			execvp("ssh", newargv);
 
+			
 		} else  if(pid > 0) { /* pere */
 
 			dsm_procs[i].pid = pid;
@@ -219,7 +219,9 @@ int main(int argc, char *argv[])
 
 	
 	/* gestion des E/S : on recupere les caracteres */
-	/* sur les tubes de redirection de stdout/stderr */     
+	/* sur les tubes de redirection de stdout/stderr */
+
+	printf("pipes I/O\n");
 
 	struct pollfd pollfds[2*num_procs];
 	
@@ -271,8 +273,13 @@ int main(int argc, char *argv[])
 	/* on attend les processus fils */
 	
 	/* on ferme les descripteurs proprement */
+	for(i = 0; i < num_procs ; i++){
+		close(dsm_procs[i].connect_info.fd);
+	}
 	
 	/* on ferme la socket d'ecoute */
+	close(listen_fd);
+
 
 	free(dsm_procs);
 	exit(EXIT_SUCCESS);

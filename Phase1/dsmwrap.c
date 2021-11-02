@@ -6,7 +6,7 @@
 int main(int argc, char **argv)
 {
 
-   printf("dsmwrap was launched\n");
+   printf("dsmwrap was launched by %s:%s\n", argv[1], argv[2]);
 
    /* processus intermediaire pour "nettoyer" */
    /* la liste des arguments qu'on va passer */
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
    /* Creation de la socket d'ecoute pour les */
    /* connexions avec les autres processus dsm */
    int listen_fd = -1;
-   int port;
+   ushort port;
    if (-1 == (listen_fd = socket_listen_and_bind(64,&port))) {
       printf("Could not create, bind and listen properly\n");
       return 1;
@@ -68,6 +68,19 @@ int main(int argc, char **argv)
 
    /* on execute la bonne commande */
    /* attention au chemin à utiliser ! */
+  
+    /* Creation du tableau d'arguments pour truc */ 
+	char *newargv[20] = {argv[3]};
+
+   /* ajout des arguments de truc */
+	int j;
+	for (j = 0;j<argc-4;j++){
+		newargv[j+1] = argv[j+4];
+	}
+	newargv[j+1] = NULL;
+
+	/* jump to new prog : */
+	execvp(argv[3], newargv);
 
    /************** ATTENTION **************/
    /* vous remarquerez que ce n'est pas   */

@@ -11,7 +11,7 @@ CFLAGS  =   -DREENTRANT -Wunused -Wall -g -std=gnu99
 CCFLAGS = $(CFLAGS)
 LIBS =  -lpthread
 
-EXECS = common.o dsmexec dsmwrap truc 
+EXECS = common.o dsmexec dsmwrap truc add_dsm_folder
 
 default: $(EXECS)
 
@@ -30,6 +30,8 @@ truc: truc.o common.o
 	@-if [ ! -d "bin" ]; then mkdir bin ; fi
 	mv $@ ./bin/
 
+add_dsm_folder : dsmexec dsmwrap truc
+	cp -r bin ~/DSM_bin
 
 clean:
 	@-/bin/rm -f *.o *~ PI* $(EXECS) *.out core 
@@ -37,6 +39,7 @@ clean:
 veryclean: clean
 	@-/bin/rm -f ./bin/*
 	@-/bin/rmdir ./bin
+	rm -rf ~/DSM_bin
 
 .c:
 	$(CC) $(CFLAGS) -o $* $< $(LIBS)
