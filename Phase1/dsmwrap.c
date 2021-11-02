@@ -14,7 +14,8 @@ int main(int argc, char **argv)
    
    /* creation d'une socket pour se connecter au */
    /* au lanceur et envoyer/recevoir les infos */
-   /* necessaires pour la phase dsm_init */   
+   /* necessaires pour la phase dsm_init */ 
+   printf("ip : %s, port : %s\n",argv[1],argv[2]);  
    int sock_fd = -1;
 	if (-1 == (sock_fd = socket_and_connect(argv[1], argv[2]))){
 		printf("Could not create socket and connect properly\n");

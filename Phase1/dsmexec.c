@@ -86,6 +86,27 @@ int main(int argc, char *argv[])
 		printf("Could not create, bind and listen properly\n");
 		return 1;
 	}
+	char port_str[MAX_STR];
+	memset(port_str,0,MAX_STR);
+	sprintf(port_str,"%hu",port);
+	printf("port : %s\n",port_str);
+	char hostbuffer[256];
+	char *IPbuffer;
+	struct hostent *host_entry;
+	int hostname;
+
+	// To retrieve hostname
+    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+
+	// To retrieve host information
+	host_entry = gethostbyname(hostbuffer);
+
+	// To convert an Internet network
+	// address into ASCII string
+	IPbuffer = inet_ntoa(*((struct in_addr*)host_entry->h_addr_list[0]));
+
+	printf("Hostname: %s\n", hostbuffer);
+	printf("Host IP: %s\n", IPbuffer);
 
 	// pipe definition
 
@@ -117,7 +138,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Fake error \n");
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "echo", "Hello World !", NULL};
+			char *newargv[20] = {"ssh", dsm_procs[i].connect_info.machine, "dsmwrap", IPbuffer,port, NULL};
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);
@@ -133,7 +154,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("start accepting\n");
+	printf("start accepting...\n");
 
 	for(i = 0; i < num_procs ; i++){
 	
