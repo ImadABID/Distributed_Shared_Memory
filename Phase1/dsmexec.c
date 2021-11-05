@@ -280,15 +280,19 @@ int main(int argc, char *argv[])
 
 	/* on attend les processus fils */
 	
+	
 	/* on ferme les descripteurs proprement */
 	for(i = 0; i < num_procs_creat ; i++){
 		close(proc_array[i].connect_info.fd);
+		close(proc_array[i].stdout_fd);
+		close(proc_array[i].stderr_fd);
 	}
-	
+
+
 	/* on ferme la socket d'ecoute */
 	close(listen_fd);
 
-
 	free(proc_array);
+
 	exit(EXIT_SUCCESS);
 }
