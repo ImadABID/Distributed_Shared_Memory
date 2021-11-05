@@ -69,6 +69,19 @@ int read_machine_names(char *path, dsm_proc_t **dsm_procs){
 
 }
 
+int procs_array_get_index_by_machine_and_pid(dsm_proc_t *proc_array, int proc_nbr, char *machine_name, int pid){
+    
+    for(int i = 0; i<proc_nbr; i++){
+        if(strcmp(proc_array[i].connect_info.machine, machine_name) == 0 && proc_array[i].pid == pid){
+            return i;
+        }
+    }
+
+    fprintf(stderr, "procs_array_get_index_by_machine_and_pid : proc not found.\n");
+    exit(EXIT_FAILURE);
+
+}
+
 void read_from_pipe(int pipe_fd, char *buffer){
     char c;
     int err;

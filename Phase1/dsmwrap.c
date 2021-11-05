@@ -6,7 +6,7 @@
 int main(int argc, char **argv)
 {
 
-   printf("dsmwrap was launched by %s:%s\n", argv[1], argv[2]);
+   printf("dsmwrap was launched by %s:%s(pid=%s)\n", argv[1], argv[2], argv[3]);
 
    /* processus intermediaire pour "nettoyer" */
    /* la liste des arguments qu'on va passer */
@@ -15,7 +15,7 @@ int main(int argc, char **argv)
    /* creation d'une socket pour se connecter au */
    /* au lanceur et envoyer/recevoir les infos */
    /* necessaires pour la phase dsm_init */ 
-   printf("ip : %s, port : %s\n",argv[1],argv[2]);  
+
    int sock_fd = -1;
 	if (-1 == (sock_fd = socket_and_connect(argv[1], argv[2]))){
 		printf("Could not create socket and connect properly\n");
@@ -25,7 +25,8 @@ int main(int argc, char **argv)
    char sock[MAX_STR];
    memset(sock,0,MAX_STR);
    sprintf(sock,"%d",sock_fd);
-   setenv("DSMEXEC_FD",sock,0);*/
+   setenv("DSMEXEC_FD",sock,0);
+   */
    
    char buff[MAX_STR];
    /* Envoi du nom de machine au lanceur */             
@@ -38,9 +39,14 @@ int main(int argc, char **argv)
       ERROR_EXIT("send");
    }
    /* Envoi du pid au lanceur (optionnel) */
-   pid_t pid_wrap = getpid();
+   /*
+      (machine_name, pid_local_proc) garantit l'unicité de proc. 
+      Cela est nécessaire pour identifier le proc après l'accepte dans dsmexec.
+   */
+   pid_t pid_local_proc = atoi(argv[3]);
+   
 
-   if (send(sock_fd, &pid_wrap, sizeof(int), 0) <= 0) {
+   if (send(sock_fd, &pid_local_proc, sizeof(int), 0) <= 0) {
       ERROR_EXIT("send");
    }
 
@@ -68,19 +74,18 @@ int main(int argc, char **argv)
 
    /* on execute la bonne commande */
    /* attention au chemin à utiliser ! */
-  
-    /* Creation du tableau d'arguments pour truc */ 
-	char *newargv[20] = {argv[3]};
+   /* Creation du tableau d'arguments pour truc */
+   char **newargv = malloc((argc-3) * sizeof(char *));
 
    /* ajout des arguments de truc */
-	int j;
-	for (j = 0;j<argc-4;j++){
-		newargv[j+1] = argv[j+4];
-	}
-	newargv[j+1] = NULL;
+   for(int j = 0; j < argc-4; j++){
+      newargv[j] = malloc(20 * sizeof(char));
+      strcpy(newargv[j], argv[j+4]);
+   }
+   newargv[argc-4] = NULL;
 
 	/* jump to new prog : */
-	execvp(argv[3], newargv);
+	execvp(argv[4], newargv);
 
    /************** ATTENTION **************/
    /* vous remarquerez que ce n'est pas   */
