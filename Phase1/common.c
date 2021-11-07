@@ -61,8 +61,7 @@ int socket_listen_and_bind(int Nb_proc, ushort* port) {
             socklen_t len = sizeof(sin);
             if (getsockname(listen_fd, (struct sockaddr *)&sin, &len) == -1)
                 perror("getsockname");
-            else
-                printf("Binding to %s on port %d\n",inet_ntoa(sin.sin_addr),ntohs(sin.sin_port));
+
 			*port = ntohs(sin.sin_port);
 			freeaddrinfo(res);
 			return listen_fd;
@@ -81,7 +80,6 @@ int socket_and_connect(char *hostname, char *port) {
 		perror("Socket");
 		exit(EXIT_FAILURE);
 	}
-	printf("Socket created (%d)\n", sock_fd);
 	struct addrinfo hints, *res, *tmp;
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_INET;
@@ -96,17 +94,11 @@ int socket_and_connect(char *hostname, char *port) {
 	tmp = res;
 	while (tmp != NULL) {
 		if (tmp->ai_addr->sa_family == AF_INET) {
-			struct sockaddr_in *sockin_ptr = (struct sockaddr_in *)tmp->ai_addr;
-			u_short port_number = sockin_ptr->sin_port;
-			char *ip_str = inet_ntoa(sockin_ptr->sin_addr);
-			printf("Address is %s:%hu\n", ip_str, htons(port_number));
-			printf("Connecting...");
-			fflush(stdout);
+
 			if (-1 == connect(sock_fd, tmp->ai_addr, tmp->ai_addrlen)) {
 				perror("Connect");
 				exit(EXIT_FAILURE);
 			}
-			printf("OK\n");
 			freeaddrinfo(res);
 			return sock_fd;
 		}
