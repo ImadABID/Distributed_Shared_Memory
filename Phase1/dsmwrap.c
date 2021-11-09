@@ -75,14 +75,18 @@ int main(int argc, char **argv)
    /* on execute la bonne commande */
    /* attention au chemin à utiliser ! */
    /* Creation du tableau d'arguments pour truc */
-   char **newargv = malloc((argc-3) * sizeof(char *));
+   char **newargv = malloc((argc-2) * sizeof(char *));
 
    /* ajout des arguments de truc */
    for(int j = 0; j < argc-4; j++){
       newargv[j] = malloc(20 * sizeof(char));
       strcpy(newargv[j], argv[j+4]);
    }
-   newargv[argc-4] = NULL;
+   char sock[MAX_STR];
+   memset(sock,0,MAX_STR);
+   sprintf(sock,"%d",sock_fd);
+   strcpy(newargv[argc-4],sock); // le sock_fd est le dernier argument
+   newargv[argc-3] = NULL;
 
 	/* jump to new prog : */
 	execvp(argv[4], newargv);
