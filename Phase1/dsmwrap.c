@@ -21,12 +21,6 @@ int main(int argc, char **argv)
 		printf("Could not create socket and connect properly\n");
 		return 1;
 	}
-   /*
-   char sock[MAX_STR];
-   memset(sock,0,MAX_STR);
-   sprintf(sock,"%d",sock_fd);
-   setenv("DSMEXEC_FD",sock,0);
-   */
    
    char buff[MAX_STR];
    /* Envoi du nom de machine au lanceur */             
@@ -59,10 +53,6 @@ int main(int argc, char **argv)
       return 1;
    }
 
-   /*
-   memset(sock,0,MAX_STR);
-   sprintf(sock,"%d",listen_fd);
-   setenv("MASTER_FD",sock,0);*/
 
    /* Envoi du numero de port au lanceur */
    /* pour qu'il le propage à tous les autres */
@@ -74,22 +64,31 @@ int main(int argc, char **argv)
 
    /* on execute la bonne commande */
    /* attention au chemin à utiliser ! */
+
    /* Creation du tableau d'arguments pour truc */
-   char **newargv = malloc((argc-2) * sizeof(char *));
+   char **newargv = malloc(5 * sizeof(char *));
 
-   /* ajout des arguments de truc */
-   for(int j = 0; j < argc-4; j++){
-      newargv[j] = malloc(20 * sizeof(char));
-      strcpy(newargv[j], argv[j+4]);
-   }
-   char sock[MAX_STR];
-   memset(sock,0,MAX_STR);
-   sprintf(sock,"%d",sock_fd);
-   strcpy(newargv[argc-4],sock); // le sock_fd est le dernier argument
-   newargv[argc-3] = NULL;
+   newargv[0] = malloc(5 * sizeof(char));
+	strcpy(newargv[0], "bash");
 
+   newargv[1] = malloc(4 * sizeof(char));
+	strcpy(newargv[1], "-c");
+
+   /* truc et ses arguments en une chaine de caractere*/
+   newargv[2] = malloc(MAX_STR * sizeof(char));
+	char *prog_to_exec_with_args_str = newargv[2];
+	strcpy(prog_to_exec_with_args_str, argv[4]);
+	for (int j = 5; j < argc; j++){
+		strcat(prog_to_exec_with_args_str, " ");
+		strcat(prog_to_exec_with_args_str, argv[j]);
+	}
+   newargv[3] = malloc(MAX_STR * sizeof(char));
+
+   printf("Executing > %s\n", newargv[2]);
+   sprintf(newargv[3],"%d",sock_fd);
+   newargv[4] = NULL;
 	/* jump to new prog : */
-	execvp(argv[4], newargv);
+	execvp("bash", newargv);
 
    /************** ATTENTION **************/
    /* vous remarquerez que ce n'est pas   */

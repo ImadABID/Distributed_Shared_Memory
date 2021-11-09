@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <time.h>
@@ -70,8 +71,9 @@ int main(int argc, char *argv[])
 	ushort proc_port;
 	pid_t proc_pid; // pid dans la machine locale
 	
-	/* Mise en place d'un traitant pour recuperer les fils zombies*/      
-	/* XXX.sa_handler = sigchld_handler; */
+	/* Mise en place d'un traitant pour recuperer les fils zombies*/
+
+
 	
 	/* lecture du fichier de machines */
 	/* 1- on recupere le nombre de processus a lancer */
@@ -90,18 +92,27 @@ int main(int argc, char *argv[])
 	}
 	// dsmexec conn info
 	char dsmexec_hostname[20];
-	char dsmexec_port_str[20];
 	if ( -1 == (gethostname(dsmexec_hostname, 20))){
       perror("gethostname");
    	}
-	sprintf(dsmexec_port_str, "%hu", port);
 
-	printf("dsmexec_conn_info : %s:%s\n", dsmexec_hostname, dsmexec_port_str);
+	printf("dsmexec_conn_info : %s:%hu\n", dsmexec_hostname, port);
 
 	// pipe definition
 
 	int tab_stdout_pipe[2];
 	int tab_stderr_pipe[2];
+
+	//execvp args
+
+	/* truc et ses arguments en une chaine de caractere*/
+	char prog_to_exec_with_args_str[MAX_STR];
+	strcpy(prog_to_exec_with_args_str, argv[2]);
+	for (int j = 3; j < argc; j++){
+		strcat(prog_to_exec_with_args_str, " ");
+		strcat(prog_to_exec_with_args_str, argv[j]);
+	}
+
 
 	/* creation des fils */
 	for(i = 0; i < num_procs_creat ; i++) {
@@ -128,25 +139,31 @@ int main(int argc, char *argv[])
 			/* redirection stderr */	      	      
 			dup2(tab_stderr_pipe[1], STDERR_FILENO);
 
-			char truc[20];
-			memset(truc,0,MAX_STR);
-			strcpy(truc,"~/DSM_bin/");
-			strcat(truc,argv[2]);
-
-			char pid_str[20];
-			sprintf(pid_str, "%d", getpid());
 
 			/* Creation du tableau d'arguments pour le ssh */ 
-			char *newargv[20] = {"ssh", proc_array[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str, pid_str, truc};
 
-			/* ajout des arguments de truc */
-			for (int j = 0; j < argc-3; j++){
-				newargv[j+7] = argv[j+3];
-			}
-			newargv[argc-2+6] = NULL;
+			/*
+				ssh -qt hostname "bash ..."
+			*/
+
+			//char *newargv[20] = {"ssh", proc_array[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str, pid_str, truc};
+			char **newargv = malloc(4 * sizeof(char *));
+
+			newargv[0] = malloc(4 * sizeof(char));
+			strcpy(newargv[0], "ssh");
+
+			newargv[1] = malloc(MAX_STR * sizeof(char));
+			strcpy(newargv[1], proc_array[i].connect_info.machine);
+
+			
+			newargv[2] = malloc(MAX_STR * sizeof(char));
+			sprintf(newargv[2], "bash -c \'dsmwrap %s %hu %d %s\'", dsmexec_hostname, port, getpid(), prog_to_exec_with_args_str);
+
+			newargv[3] = NULL;
+
 			/* jump to new prog : */
 			execvp("ssh", newargv);
-	
+
 		} else  if(pid > 0) { /* pere */
 
 			proc_array[i].pid = pid;
@@ -275,7 +292,7 @@ int main(int argc, char *argv[])
     char buffer[PRINTF_MAX_BUFFER];
 
     while(1){
-        poll(pollfds, 2*num_procs_creat, -1);
+        poll(pollfds, 2*num_procs_creat, 1000);
         for(int i = 0; i < num_procs_creat; i++){
 			//stdout
             if(pollfds[2*i].revents & POLLIN){
