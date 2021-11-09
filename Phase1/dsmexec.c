@@ -220,25 +220,15 @@ int main(int argc, char *argv[])
 	/********** DECRIT CI-DESSOUS NE DOIT PAS ETRE *************/
 	/********** MODIFIE, NI DEPLACE DANS LE CODE   *************/
 	/***********************************************************/
-	dsm_proc_conn_t msgstruct;
-	for(i = 0; i < num_procs_creat ; i++){
-
+	
 	/* 1- envoi du nombre de processus aux processus dsm*/
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
-		int nb_proc = num_procs_creat;
-		if (send(proc_array[i].connect_info.fd, &nb_proc, sizeof(int), 0) <= 0) {
-			ERROR_EXIT("send");
-		}		
-
+	
 	/* 2- envoi des rangs aux processus dsm */
 	/* chaque processus distant ne reçoit QUE SON numéro de rang */
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
-		int nb_rank = proc_array[i].connect_info.rank;
-		if (send(proc_array[i].connect_info.fd, &nb_rank, sizeof(int), 0) <= 0) {
-			ERROR_EXIT("send");
-		}
 	
 	/* 3- envoi des infos de connexion aux processus */
 	/* Chaque processus distant doit recevoir un nombre de */
@@ -246,21 +236,6 @@ int main(int argc, char *argv[])
 	/* processus distants, ce qui signifie qu'un processus */
 	/* distant recevra ses propres infos de connexion */
 	/* (qu'il n'utilisera pas, nous sommes bien d'accords). */
-	
-		for(int j = 0; j < num_procs_creat ; j++){
-			memset(&msgstruct,0,sizeof(dsm_proc_conn_t));
-			msgstruct.fd = proc_array[j].connect_info.fd;
-			msgstruct.fd_for_exit = proc_array[j].connect_info.fd_for_exit;
-			strcpy(msgstruct.machine,proc_array[j].connect_info.machine);
-			msgstruct.port_num = proc_array[j].connect_info.port_num;
-			msgstruct.rank = proc_array[j].connect_info.rank;
-			
-			if (send(proc_array[i].connect_info.fd, &msgstruct, sizeof(dsm_proc_conn_t), 0) <= 0) {
-			ERROR_EXIT("send");
-			}
-		}
-
-	}
 
 	/***********************************************************/
 	/********** FIN DU PROTOCOLE D'ECHANGE DES DONNEES *********/
