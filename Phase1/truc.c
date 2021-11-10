@@ -26,18 +26,23 @@ int main(int argc, char *argv[])
    if(fd == -1) perror("open");
    fprintf(stdout,"================ Valeur du descripteur : %i\n",fd);
 
+   int dsmexec_fd = atoi(getenv("DSMEXEC_FD"));
+   int master_fd = atoi(getenv("MASTER_FD"));
+
+   fprintf(stdout,"==> dsmexec_fd : %i\n==> master_fd : %i\n",dsmexec_fd,master_fd);	
+
    /* 1- recevoir du nombre de processus */
 	/* On reçoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
 		int nb_proc;
-		if (recv(sock_dsmexec, &nb_proc, sizeof(int), 0) <= 0) {
+		if (recv(dsmexec_fd, &nb_proc, sizeof(int), 0) <= 0) {
 			ERROR_EXIT("send");
 		}		
 
 	/* 2- recevoir des rangs */
 
 		int nb_rank;
-		if (recv(sock_dsmexec, &nb_rank, sizeof(int), 0) <= 0) { // le sock_fd est le dernier argument
+		if (recv(dsmexec_fd, &nb_rank, sizeof(int), 0) <= 0) { // le sock_fd est le dernier argument
 			ERROR_EXIT("send");
 		}
 	
@@ -46,7 +51,7 @@ int main(int argc, char *argv[])
   
     dsm_proc_conn_t tab_struct[nb_proc];
     memset(tab_struct,0,nb_proc*sizeof(dsm_proc_conn_t));
-    if (recv(sock_dsmexec, tab_struct, nb_proc*sizeof(dsm_proc_conn_t), 0) <= 0) {
+    if (recv(dsmexec_fd, tab_struct, nb_proc*sizeof(dsm_proc_conn_t), 0) <= 0) {
 			ERROR_EXIT("send");
     }
 
