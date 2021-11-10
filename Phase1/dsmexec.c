@@ -43,6 +43,7 @@ void sigchld_handler(int sig)
 {
 	/* on traite les fils qui se terminent */
 	/* pour eviter les zombies */
+	wait(NULL);
 }
 
 /*******************************************************/
@@ -73,7 +74,10 @@ int main(int argc, char *argv[])
 	
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/
 
-
+	struct sigaction sigchild_action;
+	memset(&sigchild_action,0,sizeof(sigaction));
+	sigchild_action.sa_handler = sigchld_handler;
+	sigaction(SIGCHLD,&sigchild_action,NULL);
 	
 	/* lecture du fichier de machines */
 	/* 1- on recupere le nombre de processus a lancer */
