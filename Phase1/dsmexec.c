@@ -269,6 +269,8 @@ int main(int argc, char *argv[])
 	printf("pipes I/O\n");
 
 	struct pollfd pollfds[2*num_procs_creat];
+	char deconnected[2*num_procs_creat];
+	int nbr_running_procs = 2*num_procs_creat;
 	
     for(int i = 0; i < num_procs_creat; i++){
 
@@ -276,17 +278,21 @@ int main(int argc, char *argv[])
         pollfds[2*i].fd = proc_array[i].stdout_fd;
         pollfds[2*i].events = POLLIN;
         pollfds[2*i].revents = 0;
+		deconnected[2*i] = 0;
 
 		// stderr
 		pollfds[2*i+1].fd = proc_array[i].stderr_fd;
         pollfds[2*i+1].events = POLLIN;
         pollfds[2*i+1].revents = 0;
+		deconnected[2*i+1] = 0;
 
     }
     
     char buffer[PRINTF_MAX_BUFFER];
 
-    while(1){
+	
+
+    while(nbr_running_procs>0){
         poll(pollfds, 2*num_procs_creat, 1000);
         for(int i = 0; i < num_procs_creat; i++){
 			//stdout
@@ -301,6 +307,17 @@ int main(int argc, char *argv[])
                 pollfds[2*i].revents = 0;
             }
 
+			if(!deconnected[2*i] && pollfds[2*i].revents & POLLHUP){
+				printf(
+					"[Proc %d\t: %s\t: stdout] Deconnected\n",
+					proc_array[i].connect_info.rank,
+					proc_array[i].connect_info.machine
+				);
+                pollfds[2*i].revents = 0;
+				deconnected[2*i] = 1;
+				nbr_running_procs--;
+            }
+
 			//stderr
             if(pollfds[2*i+1].revents & POLLIN){
                 read_from_pipe(pollfds[2*i+1].fd, buffer);
@@ -311,6 +328,17 @@ int main(int argc, char *argv[])
 					buffer
 				);
                 pollfds[2*i+1].revents = 0;
+            }
+
+			if(!deconnected[2*i+1] && pollfds[2*i+1].revents & POLLHUP){
+				printf(
+					"[Proc %d\t: %s\t: stderr] Deconnected\n",
+					proc_array[i].connect_info.rank,
+					proc_array[i].connect_info.machine
+				);
+                pollfds[2*i+1].revents = 0;
+				deconnected[2*i+1] = 1;
+				nbr_running_procs--;
             }
         }
     }
