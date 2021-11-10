@@ -66,7 +66,7 @@ int main(int argc, char **argv)
    /* attention au chemin à utiliser ! */
 
    /* Creation du tableau d'arguments pour truc */
-   char **newargv = malloc(4 * sizeof(char *));
+   char **newargv = malloc(5 * sizeof(char *));
 
    newargv[0] = malloc(5 * sizeof(char));
 	strcpy(newargv[0], "bash");
@@ -82,6 +82,10 @@ int main(int argc, char **argv)
 		strcat(prog_to_exec_with_args_str, " ");
 		strcat(prog_to_exec_with_args_str, argv[j]);
 	}
+
+   char fd_str[MAX_STR];
+   sprintf(fd_str," %d", sock_fd);
+	strcat(prog_to_exec_with_args_str, fd_str);
 
    printf("Executing > %s\n", newargv[2]);
 

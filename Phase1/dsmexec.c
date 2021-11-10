@@ -193,6 +193,7 @@ int main(int argc, char *argv[])
 			ERROR_EXIT("revc");
 		}
 
+
 		/* On recupere le pid du processus distant  (optionnel)*/
         if (recv(proc_fd, &proc_pid, sizeof(pid_t), 0) <= 0) {
 			ERROR_EXIT("revc");
@@ -211,6 +212,7 @@ int main(int argc, char *argv[])
 
 		proc_array[proc_index].connect_info.fd = proc_fd;
 		proc_array[proc_index].connect_info.port_num = proc_port;
+		printf("index : %i\n",proc_index);
 
     }
 	
@@ -221,14 +223,24 @@ int main(int argc, char *argv[])
 	/********** MODIFIE, NI DEPLACE DANS LE CODE   *************/
 	/***********************************************************/
 	
+	dsm_proc_conn_t msgstruct;
+	for(i = 0; i < num_procs_creat ; i++){
+
 	/* 1- envoi du nombre de processus aux processus dsm*/
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
-	
+		if (send(proc_array[i].connect_info.fd, &num_procs_creat, sizeof(int), 0) <= 0) {
+			ERROR_EXIT("send");
+		}		
+
 	/* 2- envoi des rangs aux processus dsm */
 	/* chaque processus distant ne reçoit QUE SON numéro de rang */
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
+		int nb_rank = proc_array[i].connect_info.rank;
+		if (send(proc_array[i].connect_info.fd, &nb_rank, sizeof(int), 0) <= 0) {
+			ERROR_EXIT("send");
+		}
 	
 	/* 3- envoi des infos de connexion aux processus */
 	/* Chaque processus distant doit recevoir un nombre de */
@@ -236,6 +248,14 @@ int main(int argc, char *argv[])
 	/* processus distants, ce qui signifie qu'un processus */
 	/* distant recevra ses propres infos de connexion */
 	/* (qu'il n'utilisera pas, nous sommes bien d'accords). */
+		dsm_proc_conn_t tab_conn[num_procs_creat];
+		for (int j =0;j < num_procs_creat;j++){
+			memcpy(&(tab_conn[j]),&(proc_array[j].connect_info),sizeof(dsm_proc_conn_t)); 
+		}
+		if (send(proc_array[i].connect_info.fd, tab_conn, num_procs_creat*sizeof(dsm_proc_conn_t), 0) <= 0) {
+			ERROR_EXIT("send");
+		}
+	}
 
 	/***********************************************************/
 	/********** FIN DU PROTOCOLE D'ECHANGE DES DONNEES *********/
