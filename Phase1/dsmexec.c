@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("Start accepting...\n");
+	printf("---------\nAccepting\n---------\n");
 
 	for(i = 0; i < num_procs_creat ; i++){
 
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 	/* gestion des E/S : on recupere les caracteres */
 	/* sur les tubes de redirection de stdout/stderr */
 
-	printf("pipes I/O\n");
+	printf("---------\npipes I/O\n---------\n");
 
 	struct pollfd pollfds[2*num_procs_creat];
 	char deconnected[2*num_procs_creat];
@@ -347,7 +347,13 @@ int main(int argc, char *argv[])
     }
 
 	/* on attend les processus fils */
+	printf("---------\nWaiting children\n---------\n");
+	for(int i = 0; i < num_procs_creat; i++){
+		wait(NULL);
+	}
+	printf("OK\n");
 	
+	printf("---------\nCleaning Memory\n---------\n");
 	
 	/* on ferme les descripteurs proprement */
 	for(i = 0; i < num_procs_creat ; i++){
@@ -361,6 +367,10 @@ int main(int argc, char *argv[])
 	close(listen_fd);
 
 	free(proc_array);
+
+	printf("OK\n");
+
+	printf("---------\nEND\n---------\n");
 
 	exit(EXIT_SUCCESS);
 }
