@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 	memset(&sigchild_action,0,sizeof(struct sigaction));
 	sigchild_action.sa_handler = sigchld_handler;
 
-	sigaction(SIGCHLD,&sigchild_action,NULL);
+	//sigaction(SIGCHLD,&sigchild_action,NULL);
 	
 	/* lecture du fichier de machines */
 	/* 1- on recupere le nombre de processus a lancer */
