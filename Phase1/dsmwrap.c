@@ -83,13 +83,18 @@ int main(int argc, char **argv)
 		strcat(prog_to_exec_with_args_str, argv[j]);
 	}
 
-   char fd_str[MAX_STR];
-   sprintf(fd_str," %d", sock_fd);
-	strcat(prog_to_exec_with_args_str, fd_str);
+   
 
    printf("Executing > %s\n", newargv[2]);
 
    newargv[3] = NULL;
+
+   char fd_str[MAX_STR];
+   sprintf(fd_str,"%d", sock_fd);
+   setenv("DSMEXEC_FD",fd_str,0);
+
+   sprintf(fd_str,"%d", listen_fd);
+   setenv("MASTER_FD",fd_str,0);
 
 	/* jump to new prog : */
 	execvp("bash", newargv);
