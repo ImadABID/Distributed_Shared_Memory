@@ -147,19 +147,22 @@ int main(int argc, char *argv[])
 			*/
 
 			//char *newargv[20] = {"ssh", proc_array[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str, pid_str, truc};
-			char **newargv = malloc(4 * sizeof(char *));
+			char **newargv = malloc(5 * sizeof(char *));
 
 			newargv[0] = malloc(4 * sizeof(char));
 			strcpy(newargv[0], "ssh");
 
-			newargv[1] = malloc(MAX_STR * sizeof(char));
-			strcpy(newargv[1], proc_array[i].connect_info.machine);
+			newargv[1] = malloc(4 * sizeof(char));
+			strcpy(newargv[1], "-q");
+
+			newargv[2] = malloc(MAX_STR * sizeof(char));
+			strcpy(newargv[2], proc_array[i].connect_info.machine);
 
 			
-			newargv[2] = malloc(MAX_STR * sizeof(char));
-			sprintf(newargv[2], "bash -c \'dsmwrap %s %hu %d %s\'", dsmexec_hostname, port, getpid(), prog_to_exec_with_args_str);
+			newargv[3] = malloc(MAX_STR * sizeof(char));
+			sprintf(newargv[3], "bash -c \'dsmwrap %s %hu %d %s\'", dsmexec_hostname, port, getpid(), prog_to_exec_with_args_str);
 
-			newargv[3] = NULL;
+			newargv[4] = NULL;
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);
