@@ -230,13 +230,13 @@ int main(int argc, char *argv[])
 	/********** MODIFIE, NI DEPLACE DANS LE CODE   *************/
 	/***********************************************************/
 	
-	dsm_proc_conn_t msgstruct;
 	for(i = 0; i < num_procs_creat ; i++){
 
 	/* 1- envoi du nombre de processus aux processus dsm*/
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
-		if (send(proc_array[i].connect_info.fd, &num_procs_creat, sizeof(int), 0) <= 0) {
+		int nb_proc = num_procs_creat;
+		if (send(proc_array[i].connect_info.fd, &nb_proc, sizeof(int), 0) <= 0) {
 			ERROR_EXIT("send");
 		}		
 

@@ -13,8 +13,11 @@ int main(int argc, char *argv[])
    char str[1024];
    char exec_path[2048];   
    char *wd_ptr = NULL;
-   int sock_dsmexec = atoi(argv[argc-1]);
    wd_ptr = getcwd(str,1024);
+
+   if (wd_ptr == NULL){
+     perror("getcwd");
+   }
    fprintf(stdout,"Working dir is %s\n",str);
    
    fprintf(stdout,"Number of args : %i\n", argc);
