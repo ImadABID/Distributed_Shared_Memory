@@ -75,8 +75,9 @@ int main(int argc, char *argv[])
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/
 
 	struct sigaction sigchild_action;
-	memset(&sigchild_action,0,sizeof(sigaction));
+	memset(&sigchild_action,0,sizeof(struct sigaction));
 	sigchild_action.sa_handler = sigchld_handler;
+
 	sigaction(SIGCHLD,&sigchild_action,NULL);
 	
 	/* lecture du fichier de machines */
@@ -219,7 +220,6 @@ int main(int argc, char *argv[])
 
 		proc_array[proc_index].connect_info.fd = proc_fd;
 		proc_array[proc_index].connect_info.port_num = proc_port;
-		printf("index : %i\n",proc_index);
 
     }
 	
