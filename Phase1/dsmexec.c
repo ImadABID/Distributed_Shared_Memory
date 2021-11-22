@@ -79,6 +79,10 @@ int main(int argc, char *argv[])
 	sigchild_action.sa_handler = sigchld_handler;
 
 	//sigaction(SIGCHLD,&sigchild_action,NULL);
+
+	struct sigaction act = {{0}};
+	act.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE,&act,NULL);
 	
 	/* lecture du fichier de machines */
 	/* 1- on recupere le nombre de processus a lancer */
@@ -237,7 +241,8 @@ int main(int argc, char *argv[])
 	/* (IE PAS UNE CHAINE DE CARACTERES */
 		int nb_proc = num_procs_creat;
 		if (send(proc_array[i].connect_info.fd, &nb_proc, sizeof(int), 0) <= 0) {
-			ERROR_EXIT("send");
+		  if (errno != EPIPE)  
+		    ERROR_EXIT("send");
 		}		
 
 	/* 2- envoi des rangs aux processus dsm */
@@ -246,7 +251,8 @@ int main(int argc, char *argv[])
 	/* (IE PAS UNE CHAINE DE CARACTERES */
 		int nb_rank = proc_array[i].connect_info.rank;
 		if (send(proc_array[i].connect_info.fd, &nb_rank, sizeof(int), 0) <= 0) {
-			ERROR_EXIT("send");
+		  if (errno != EPIPE)  
+		    ERROR_EXIT("send");
 		}
 	
 	/* 3- envoi des infos de connexion aux processus */
@@ -260,7 +266,8 @@ int main(int argc, char *argv[])
 			memcpy(&(tab_conn[j]),&(proc_array[j].connect_info),sizeof(dsm_proc_conn_t)); 
 		}
 		if (send(proc_array[i].connect_info.fd, tab_conn, num_procs_creat*sizeof(dsm_proc_conn_t), 0) <= 0) {
-			ERROR_EXIT("send");
+		  if (errno != EPIPE)  		    
+		    ERROR_EXIT("send");
 		}
 	}
 
