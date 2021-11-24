@@ -29,7 +29,7 @@ int main(int argc, char **argv)
       perror("gethostname");
    }
 
-   if (send(sock_fd, buff, MAX_STR, 0) <= 0) {
+   if (send(sock_fd, buff, MAX_STR, MSG_NOSIGNAL) <= 0) {
       ERROR_EXIT("send");
    }
    /* Envoi du pid au lanceur (optionnel) */
@@ -40,14 +40,14 @@ int main(int argc, char **argv)
    pid_t pid_local_proc = atoi(argv[3]);
    
 
-   if (send(sock_fd, &pid_local_proc, sizeof(int), 0) <= 0) {
+   if (send(sock_fd, &pid_local_proc, sizeof(int), MSG_NOSIGNAL) <= 0) {
       ERROR_EXIT("send");
    }
 
    /* Creation de la socket d'ecoute pour les */
    /* connexions avec les autres processus dsm */
    int listen_fd = -1;
-   ushort port;
+   unsigned short port;
    if (-1 == (listen_fd = socket_listen_and_bind(64,&port))) {
       printf("Could not create, bind and listen properly\n");
       return 1;
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
    /* pour qu'il le propage à tous les autres */
    /* processus dsm */
 
-   if (send(sock_fd, &port, sizeof(int), 0) <= 0) {
+   if (send(sock_fd, &port, sizeof(int), MSG_NOSIGNAL) <= 0) {
       ERROR_EXIT("send");
    }
 
@@ -66,28 +66,20 @@ int main(int argc, char **argv)
    /* attention au chemin à utiliser ! */
 
    /* Creation du tableau d'arguments pour truc */
-   char **newargv = malloc(5 * sizeof(char *));
-
-   newargv[0] = malloc(5 * sizeof(char));
-	strcpy(newargv[0], "bash");
-
-   newargv[1] = malloc(4 * sizeof(char));
-	strcpy(newargv[1], "-c");
+   int newargc = argc-4;
+   char **newargv = malloc( (newargc+1)* sizeof(char *));
 
    /* truc et ses arguments en une chaine de caractere*/
-   newargv[2] = malloc(MAX_STR * sizeof(char));
-	char *prog_to_exec_with_args_str = newargv[2];
-	strcpy(prog_to_exec_with_args_str, argv[4]);
+
+   newargv[0] = malloc(MAX_STR * sizeof(char));
+   sprintf(newargv[0], "%s", argv[4]);
+
 	for (int j = 5; j < argc; j++){
-		strcat(prog_to_exec_with_args_str, " ");
-		strcat(prog_to_exec_with_args_str, argv[j]);
+      newargv[j-4] = malloc(MAX_STR * sizeof(char));
+      strcpy(newargv[j-4], argv[j]);
 	}
 
-   
-
-   printf("Executing > %s\n", newargv[2]);
-
-   newargv[3] = NULL;
+   newargv[newargc] = NULL;
 
    char fd_str[MAX_STR];
    sprintf(fd_str,"%d", sock_fd);
@@ -97,7 +89,7 @@ int main(int argc, char **argv)
    setenv("MASTER_FD",fd_str,0);
 
 	/* jump to new prog : */
-	execvp("bash", newargv);
+	execvp(newargv[0], newargv);
 
    /************** ATTENTION **************/
    /* vous remarquerez que ce n'est pas   */

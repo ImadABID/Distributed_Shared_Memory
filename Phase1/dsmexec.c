@@ -65,25 +65,30 @@ int main(int argc, char *argv[])
 	int i; // pour les boucles for
 
 	char buff[MAX_STR];
-    ushort port;
+    unsigned short port;
 
 	int proc_index; // dans proc_array
 	int proc_fd;
-	ushort proc_port;
+	unsigned short proc_port;
 	pid_t proc_pid; // pid dans la machine locale
 	
 	/* Mise en place d'un traitant pour recuperer les fils zombies*/
-
+	/*
 	struct sigaction sigchild_action;
 	memset(&sigchild_action,0,sizeof(struct sigaction));
 	sigchild_action.sa_handler = sigchld_handler;
+	*/
+
 
 	//sigaction(SIGCHLD,&sigchild_action,NULL);
 
+	/*
 	struct sigaction act = {{0}};
 	act.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE,&act,NULL);
-	
+	*/
+
+
 	/* lecture du fichier de machines */
 	/* 1- on recupere le nombre de processus a lancer */
 	/* 2- on recupere les noms des machines : le nom de */
@@ -111,17 +116,6 @@ int main(int argc, char *argv[])
 
 	int tab_stdout_pipe[2];
 	int tab_stderr_pipe[2];
-
-	//execvp args
-
-	/* truc et ses arguments en une chaine de caractere*/
-	char prog_to_exec_with_args_str[MAX_STR];
-	strcpy(prog_to_exec_with_args_str, argv[2]);
-	for (int j = 3; j < argc; j++){
-		strcat(prog_to_exec_with_args_str, " ");
-		strcat(prog_to_exec_with_args_str, argv[j]);
-	}
-
 
 	/* creation des fils */
 	for(i = 0; i < num_procs_creat ; i++) {
@@ -155,23 +149,35 @@ int main(int argc, char *argv[])
 				ssh -qt hostname "bash ..."
 			*/
 
+
 			//char *newargv[20] = {"ssh", proc_array[i].connect_info.machine, "~/DSM_bin/dsmwrap", dsmexec_hostname, dsmexec_port_str, pid_str, truc};
-			char **newargv = malloc(5 * sizeof(char *));
+			int newargc = 4+argc;
+			char **newargv = malloc((newargc+1) * sizeof(char *));
 
 			newargv[0] = malloc(4 * sizeof(char));
 			strcpy(newargv[0], "ssh");
 
-			newargv[1] = malloc(4 * sizeof(char));
-			strcpy(newargv[1], "-q");
+			newargv[1] = malloc(MAX_STR * sizeof(char));
+			strcpy(newargv[1], proc_array[i].connect_info.machine);
 
 			newargv[2] = malloc(MAX_STR * sizeof(char));
-			strcpy(newargv[2], proc_array[i].connect_info.machine);
+			sprintf(newargv[2], "dsmwrap");
 
-			
 			newargv[3] = malloc(MAX_STR * sizeof(char));
-			sprintf(newargv[3], "bash -c \'dsmwrap %s %hu %d %s\'", dsmexec_hostname, port, getpid(), prog_to_exec_with_args_str);
+			strcpy(newargv[3], dsmexec_hostname);
 
-			newargv[4] = NULL;
+			newargv[4] = malloc(MAX_STR * sizeof(char));
+			sprintf(newargv[4], "%hu", port);
+
+			newargv[5] = malloc(MAX_STR * sizeof(char));
+			sprintf(newargv[5], "%d", getpid());
+
+			for(int j = 2; j<argc; j++){
+				newargv[j+4] = malloc(MAX_STR * sizeof(char));
+				strcpy(newargv[j+4], argv[j]);
+			}
+
+			newargv[newargc] = NULL;
 
 			/* jump to new prog : */
 			execvp("ssh", newargv);
@@ -201,20 +207,20 @@ int main(int argc, char *argv[])
 		/*  On recupere le nom de la machine distante */	
 		/* 1- puis la chaine elle-meme */
     	memset(buff,0,MAX_STR);
-		if (recv(proc_fd, buff, MAX_STR, 0) <= 0) {
+		if (recv(proc_fd, buff, MAX_STR, MSG_NOSIGNAL) <= 0) {
 			ERROR_EXIT("revc");
 		}
 
 
 		/* On recupere le pid du processus distant  (optionnel)*/
-        if (recv(proc_fd, &proc_pid, sizeof(pid_t), 0) <= 0) {
+        if (recv(proc_fd, &proc_pid, sizeof(pid_t), MSG_NOSIGNAL) <= 0) {
 			ERROR_EXIT("revc");
 		}
 
 		/* On recupere le numero de port de la socket */
 		/* d'ecoute des processus distants */
         /* cf code de dsmwrap.c */
-        if (recv(proc_fd, &proc_port, sizeof(ushort), 0) <= 0) {
+        if (recv(proc_fd, &proc_port, sizeof(unsigned short), MSG_NOSIGNAL) <= 0) {
 			ERROR_EXIT("revc");
 		}
 
@@ -240,17 +246,18 @@ int main(int argc, char *argv[])
 	/* On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
 		int nb_proc = num_procs_creat;
-		if (send(proc_array[i].connect_info.fd, &nb_proc, sizeof(int), 0) <= 0) {
+		if (send(proc_array[i].connect_info.fd, &nb_proc, sizeof(int), MSG_NOSIGNAL) <= 0) {
 		  if (errno != EPIPE)  
 		    ERROR_EXIT("send");
 		}		
+	
 
-	/* 2- envoi des rangs aux processus dsm */
-	/* chaque processus distant ne reçoit QUE SON numéro de rang */
-	/* On envoie cette information sous la forme d'un ENTIER */
+
+	
+	/*2 On envoie cette information sous la forme d'un ENTIER */
 	/* (IE PAS UNE CHAINE DE CARACTERES */
 		int nb_rank = proc_array[i].connect_info.rank;
-		if (send(proc_array[i].connect_info.fd, &nb_rank, sizeof(int), 0) <= 0) {
+		if (send(proc_array[i].connect_info.fd, &nb_rank, sizeof(int), MSG_NOSIGNAL) <= 0) {
 		  if (errno != EPIPE)  
 		    ERROR_EXIT("send");
 		}
@@ -265,7 +272,7 @@ int main(int argc, char *argv[])
 		for (int j =0;j < num_procs_creat;j++){
 			memcpy(&(tab_conn[j]),&(proc_array[j].connect_info),sizeof(dsm_proc_conn_t)); 
 		}
-		if (send(proc_array[i].connect_info.fd, tab_conn, num_procs_creat*sizeof(dsm_proc_conn_t), 0) <= 0) {
+		if (send(proc_array[i].connect_info.fd, tab_conn, num_procs_creat*sizeof(dsm_proc_conn_t), MSG_NOSIGNAL) <= 0) {
 		  if (errno != EPIPE)  		    
 		    ERROR_EXIT("send");
 		}
@@ -301,10 +308,8 @@ int main(int argc, char *argv[])
 		deconnected[2*i+1] = 0;
 
     }
-    
-    char buffer[PRINTF_MAX_BUFFER];
 
-	
+	char buffer[PRINTF_MAX_BUFFER];
 
     while(nbr_running_procs>0){
         poll(pollfds, 2*num_procs_creat, 1000);
