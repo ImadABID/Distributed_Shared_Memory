@@ -1,4 +1,7 @@
 #include "dsm.h"
+#include "common_impl.h"
+#include <sys/types.h>
+#include <sys/socket.h>
 
 int DSM_NODE_NUM; /* nombre de processus dsm */
 int DSM_NODE_ID;  /* rang (= numero) du processus */ 
@@ -150,16 +153,38 @@ char *dsm_init(int argc, char *argv[])
 
    /* Récupération de la valeur des variables d'environnement */
    /* DSMEXEC_FD et MASTER_FD                                 */
+   int dsmexec_fd = atoi(getenv("DSMEXEC_FD"));
+   int master_fd = atoi(getenv("MASTER_FD"));
+   fprintf(stdout,"==> dsmexec_fd : %i\n==> master_fd : %i\n",dsmexec_fd,master_fd);	
    
    /* reception du nombre de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_NUM) */
+   int DSM_NODE_NUM;
+	if (recv(dsmexec_fd, &DSM_NODE_NUM, sizeof(int), 0) <= 0) {
+		ERROR_EXIT("send");
+	}	
    
    /* reception de mon numero de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_ID)      */
+   int DSM_NODE_ID;
+	if (recv(dsmexec_fd, &DSM_NODE_ID, sizeof(int), 0) <= 0) { // le sock_fd est le dernier argument
+		ERROR_EXIT("send");
+	}
+
    
    /* reception des informations de connexion des autres */
    /* processus envoyees par le lanceur :                */
    /* nom de machine, numero de port, etc.               */
+   dsm_proc_conn_t tab_struct[DSM_NODE_NUM];
+   memset(tab_struct,0,DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
+   if (recv(dsmexec_fd, tab_struct, DSM_NODE_NUM*sizeof(dsm_proc_conn_t), 0) <= 0) {
+		ERROR_EXIT("send");
+   }
+
+   for(int j = 0; j < DSM_NODE_NUM ; j++){
+     fprintf(stdout,"==> fd : %i\n==> fd_exit : %i\n==> Nom machine : %s\n==> Nombre port : %i\n==> Nombre rang : %i\n",tab_struct[j].fd,tab_struct[j].fd_for_exit,tab_struct[j].machine,tab_struct[j].port_num,tab_struct[j].rank);
+   }
+
    
    /* initialisation des connexions              */ 
    /* avec les autres processus : connect/accept */
