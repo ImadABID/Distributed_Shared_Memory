@@ -188,6 +188,10 @@ char *dsm_init(int argc, char *argv[])
    
    /* initialisation des connexions              */ 
    /* avec les autres processus : connect/accept */
+
+   for(int j = 0; j<DSM_NODE_NUM ; j++){
+
+   }
    
    /* Allocation des pages en tourniquet */
    for(index = 0; index < PAGE_NUMBER; index ++){	
