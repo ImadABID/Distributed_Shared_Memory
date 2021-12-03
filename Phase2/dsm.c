@@ -2,6 +2,9 @@
 #include "common_impl.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+
+
 
 int DSM_NODE_NUM; /* nombre de processus dsm */
 int DSM_NODE_ID;  /* rang (= numero) du processus */ 
@@ -155,7 +158,6 @@ char *dsm_init(int argc, char *argv[])
    /* DSMEXEC_FD et MASTER_FD                                 */
    int dsmexec_fd = atoi(getenv("DSMEXEC_FD"));
    int master_fd = atoi(getenv("MASTER_FD"));
-   fprintf(stdout,"==> dsmexec_fd : %i\n==> master_fd : %i\n",dsmexec_fd,master_fd);	
    
    /* reception du nombre de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_NUM) */
@@ -181,17 +183,60 @@ char *dsm_init(int argc, char *argv[])
 		ERROR_EXIT("send");
    }
 
-   for(int j = 0; j < DSM_NODE_NUM ; j++){
-     fprintf(stdout,"==> fd : %i\n==> fd_exit : %i\n==> Nom machine : %s\n==> Nombre port : %i\n==> Nombre rang : %i\n",tab_struct[j].fd,tab_struct[j].fd_for_exit,tab_struct[j].machine,tab_struct[j].port_num,tab_struct[j].rank);
-   }
-
-   
+   printf(stdout,"j'attend la moi1 : %s\n",tab_struct[DSM_NODE_ID].machine);
    /* initialisation des connexions              */ 
    /* avec les autres processus : connect/accept */
 
-   for(int j = 0; j<DSM_NODE_NUM ; j++){
+   /* Tableau des sockets après accept avec chaque processus*/
+   int sock_inter[DSM_NODE_NUM];
+   memset(sock_inter,-1,DSM_NODE_NUM);
+
+   /* il faut éviter les doubles connect de la part de deux processus*/
+
+   /* on accepte les connexions des autres processus dsm de rang inférieur */
+   for(int j = 0; j < DSM_NODE_ID; j++){
+      struct sockaddr_in csin;
+      socklen_t size = sizeof(csin);
+      int sock_fd = -1;
+      printf(stdout,"j'attend la moi2 : %s\n",tab_struct[DSM_NODE_ID].machine);
+      if (-1 == (sock_fd = accept(master_fd, (struct sockaddr *)&csin, &size))) {
+         perror("Accept");
+      }
+
+      printf(stdout,"addr :%s\n",csin.sin_addr);
+      int rank;
+
+      /* recevoir le rang */            
+      if (recv(sock_fd, &rank, MAX_STR, MSG_NOSIGNAL) <= 0) {
+         ERROR_EXIT("recv");
+      }
+      sock_inter[rank]=sock_fd;
+   }
+
+   /* on se connecte avec les autres processus dsm de rang supérieur*/
+   for(int k = DSM_NODE_ID+1; k < DSM_NODE_NUM; k++){
+      char hostname[MAX_STR];
+      char port_str[MAX_STR];
+      if (-1 == (sock_inter[k] = socket_and_connect( rank2hostname(tab_struct,k,DSM_NODE_NUM,hostname), rank2port(tab_struct,k,DSM_NODE_NUM,port_str) ) )){
+         printf("Could not create socket and connect properly\n");
+         return 1;
+      }
+      int rank = DSM_NODE_ID;
+      /* Envoi du rang */            
+      if (send(sock_inter[k], &DSM_NODE_ID, MAX_STR, MSG_NOSIGNAL) <= 0) {
+         ERROR_EXIT("send");
+      }
+      
 
    }
+
+   /*test*/
+   for (int j = 0; j < DSM_NODE_NUM;j++){
+      printf(stdout,"socket accepte %i",sock_inter[j]);
+   }
+   printf(stdout,"\n");
+
+
    
    /* Allocation des pages en tourniquet */
    for(index = 0; index < PAGE_NUMBER; index ++){	

@@ -107,3 +107,25 @@ int socket_and_connect(char *hostname, char *port) {
 	freeaddrinfo(res);
 	return -1;
 }
+
+/* obtenir le nom de la machine par son rang*/
+char * rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname){
+	memset(hostname,0,MAX_STR);
+	for (int j=0; j<numb_proc; j++){
+		if(rank == tab_struct[j].rank && rank < numb_proc+1){
+			strcpy(hostname,tab_struct[j].machine);
+			return hostname;
+		}
+	}
+}
+
+/* obtenir le port par son rang*/
+char * rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str){
+	memset(port_str,0,MAX_STR);
+	for (int j=0; j<numb_proc; j++){
+		if(rank == tab_struct[j].rank && rank < numb_proc+1){
+			sprintf(port_str,"%i",tab_struct[j].port_num);
+			return port_str;
+		}
+	}
+}
