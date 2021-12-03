@@ -98,20 +98,54 @@ static void *dsm_comm_daemon( void *arg)
 static int dsm_send(int dest,void *buf,size_t size)
 {
    /* a completer */
-  return 0;
+   char * buff = (char *)buf;
+   int ret = 0, offset = 0;
+	while (offset != size) {
+		if (-1 == (ret = send(sock_inter[dest], buff + offset, size - offset,MSG_NOSIGNAL))) {
+			perror("send");
+			return -1;
+		}
+		offset += ret;
+	}
+	return offset;
 }
 
 static int dsm_recv(int from,void *buf,size_t size)
 {
    /* a completer */
-  return 0;
+   char * buff = (char *)buf;
+   int ret = 0;
+	int offset = 0;
+	while (offset != size) {
+		ret = recv(sock_inter[from], buff + offset, size - offset,MSG_NOSIGNAL);
+		if (-1 == ret) {
+			perror("recv");
+         return -1;
+		}
+		offset += ret;
+	}
+	return offset;
 }
 
-static void dsm_handler( void )
+static void dsm_handler(int page_num)
 {  
    /* A modifier */
    printf("[%i] FAULTY  ACCESS !!! \n",DSM_NODE_ID);
-   abort();
+   dsm_page_owner_t owner_rank = get_owner(page_num);
+
+   /* send request type */
+   dsm_req_type_t req_type = DSM_REQ;
+   dsm_send(owner_rank,&req_type,sizeof(dsm_req_type_t));
+
+   /*send struct info*/
+   dsm_req_t dsm_req;
+   dsm_req.page_num = page_num;
+   dsm_req.source = DSM_NODE_ID;
+   dsm_send(owner_rank,&dsm_req,sizeof(dsm_req_t));
+
+   /*recv page*/
+   
+
 }
 
 /* traitant de signal adequat */
@@ -139,7 +173,7 @@ static void segv_handler(int sig, siginfo_t *info, void *context)
 
    if ((addr >= (void *)BASE_ADDR) && (addr < (void *)TOP_ADDR))
      {
-	dsm_handler();
+	dsm_handler(address2num(page_addr));
      }
    else
      {
@@ -188,7 +222,7 @@ char *dsm_init(int argc, char *argv[])
    /* avec les autres processus : connect/accept */
 
    /* Tableau des sockets après accept avec chaque processus*/
-   int sock_inter[DSM_NODE_NUM];
+   sock_inter = malloc( DSM_NODE_NUM * sizeof(int));
    memset(sock_inter,-1,DSM_NODE_NUM);
 
    /* il faut éviter les doubles connect de la part de deux processus*/

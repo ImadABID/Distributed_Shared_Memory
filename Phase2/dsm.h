@@ -41,9 +41,28 @@ typedef struct
 
 dsm_page_info_t table_page[PAGE_NUMBER];
 
+typedef enum
+{
+   DSM_NO_TYPE = -1,
+   DSM_REQ,
+   DSM_PAGE,
+   DSM_NREQ,
+   DSM_FINALIZE
+} dsm_req_type_t;
+
+typedef struct
+{
+   int source;
+   int page_num;
+} dsm_req_t;
+
+
 pthread_t comm_daemon;
 extern int DSM_NODE_ID;
 extern int DSM_NODE_NUM;
+
+/* Tableau des sockets avec chaque processus*/
+int *sock_inter;
 
 char *dsm_init( int argc, char *argv[]);
 void  dsm_finalize( void );
