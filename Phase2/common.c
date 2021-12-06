@@ -109,23 +109,41 @@ int socket_and_connect(char *hostname, char *port) {
 }
 
 /* obtenir le nom de la machine par son rang*/
-char * rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname){
-	memset(hostname,0,MAX_STR);
+void rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname){
+	
 	for (int j=0; j<numb_proc; j++){
 		if(rank == tab_struct[j].rank && rank < numb_proc+1){
 			strcpy(hostname,tab_struct[j].machine);
-			return hostname;
+			return;
 		}
 	}
+
+	fprintf(stderr, "rank2hostname : No such rank = %d.\n", rank);
+	exit(EXIT_FAILURE);
+
 }
 
 /* obtenir le port par son rang*/
-char * rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str){
-	memset(port_str,0,MAX_STR);
+void rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str){
+
 	for (int j=0; j<numb_proc; j++){
 		if(rank == tab_struct[j].rank && rank < numb_proc+1){
-			sprintf(port_str,"%i",tab_struct[j].port_num);
-			return port_str;
+			sprintf(port_str,"%hu",tab_struct[j].port_num);
+			return;
 		}
 	}
+
+	fprintf(stderr, "rank2hostname : No such rank = %d.\n", rank);
+	exit(EXIT_FAILURE);
+
+}
+
+void display_connect_info(dsm_proc_conn_t *tab, int tab_size){
+
+	for (int j=0; j<tab_size; j++){
+
+		printf("address : %s:%hu, rank : %d, fd : %d, fd_for_exit : %d\n", tab[j].machine, tab[j].port_num, tab[j].rank, tab[j].fd, tab[j].fd_for_exit);
+		 
+	}
+
 }

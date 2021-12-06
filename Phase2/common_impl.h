@@ -61,9 +61,11 @@ int socket_listen_and_bind(int Nb_proc, ushort* port);
 int socket_and_connect(char *hostname, char *port);
 
 /* obtenir le nom de la machine par son rang*/
-char * rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname);
+void rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname);
 
 /* obtenir le port par son rang*/
-char * rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str);
+void rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str);
+
+void display_connect_info(dsm_proc_conn_t *tab, int tab_size);
 
 #endif

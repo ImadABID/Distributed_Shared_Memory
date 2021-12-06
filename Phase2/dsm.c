@@ -1,5 +1,6 @@
 #include "dsm.h"
 #include "common_impl.h"
+#include "socket_IO.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -129,6 +130,9 @@ static int dsm_recv(int from,void *buf,size_t size)
 
 static void dsm_handler(int page_num)
 {  
+
+   sleep(3);
+
    /* A modifier */
    printf("[%i] FAULTY  ACCESS !!! \n",DSM_NODE_ID);
    dsm_page_owner_t owner_rank = get_owner(page_num);
@@ -186,7 +190,7 @@ static void segv_handler(int sig, siginfo_t *info, void *context)
 char *dsm_init(int argc, char *argv[])
 {   
    struct sigaction act;
-   int index;   
+   int index;
 
    /* Récupération de la valeur des variables d'environnement */
    /* DSMEXEC_FD et MASTER_FD                                 */
@@ -203,21 +207,27 @@ char *dsm_init(int argc, char *argv[])
    /* reception de mon numero de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_ID)      */
    int DSM_NODE_ID;
-	if (recv(dsmexec_fd, &DSM_NODE_ID, sizeof(int), 0) <= 0) { // le sock_fd est le dernier argument
-		ERROR_EXIT("send");
+	if (recv(dsmexec_fd, &DSM_NODE_ID, sizeof(int), sizeof(int)) < 0) { // le sock_fd est le dernier argument
+		ERROR_EXIT("DSM_NODE_ID. send");
 	}
-
    
    /* reception des informations de connexion des autres */
    /* processus envoyees par le lanceur :                */
    /* nom de machine, numero de port, etc.               */
    dsm_proc_conn_t tab_struct[DSM_NODE_NUM];
-   memset(tab_struct,0,DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
-   if (recv(dsmexec_fd, tab_struct, DSM_NODE_NUM*sizeof(dsm_proc_conn_t), 0) <= 0) {
-		ERROR_EXIT("send");
-   }
 
-   printf(stdout,"j'attend la moi1 : %s\n",tab_struct[DSM_NODE_ID].machine);
+   receive_data(dsmexec_fd, (char *) tab_struct, DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
+
+   /*
+   memset(tab_struct,0,DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
+   if (recv(dsmexec_fd, tab_struct, DSM_NODE_NUM*sizeof(dsm_proc_conn_t), 0) < DSM_NODE_NUM*sizeof(dsm_proc_conn_t)) {
+		ERROR_EXIT("connect info. send");
+   }
+   */
+
+   //display_connect_info(tab_struct, DSM_NODE_NUM);
+
+   printf("connect/accept with all process.\n");
    /* initialisation des connexions              */ 
    /* avec les autres processus : connect/accept */
 
@@ -232,45 +242,54 @@ char *dsm_init(int argc, char *argv[])
       struct sockaddr_in csin;
       socklen_t size = sizeof(csin);
       int sock_fd = -1;
-      printf(stdout,"j'attend la moi2 : %s\n",tab_struct[DSM_NODE_ID].machine);
       if (-1 == (sock_fd = accept(master_fd, (struct sockaddr *)&csin, &size))) {
-         perror("Accept");
+         ERROR_EXIT("Accept");
       }
 
-      printf(stdout,"addr :%s\n",csin.sin_addr);
-      int rank;
+      //csin.sin_addr n'est pas un char *.
+      //fprintf(stdout,"addr :%s\n",csin.sin_addr); 
 
-      /* recevoir le rang */            
-      if (recv(sock_fd, &rank, MAX_STR, MSG_NOSIGNAL) <= 0) {
+      /* recevoir le rang */
+      int rank;        
+      if (recv(sock_fd, &rank, sizeof(int), MSG_NOSIGNAL) <= 0) {
          ERROR_EXIT("recv");
       }
       sock_inter[rank]=sock_fd;
+
+      fprintf(stdout,"pross with rank %d was accepted\n", rank);
    }
 
    /* on se connecte avec les autres processus dsm de rang supérieur*/
    for(int k = DSM_NODE_ID+1; k < DSM_NODE_NUM; k++){
       char hostname[MAX_STR];
       char port_str[MAX_STR];
-      if (-1 == (sock_inter[k] = socket_and_connect( rank2hostname(tab_struct,k,DSM_NODE_NUM,hostname), rank2port(tab_struct,k,DSM_NODE_NUM,port_str) ) )){
-         printf("Could not create socket and connect properly\n");
-         return 1;
+
+      rank2hostname(tab_struct,k,DSM_NODE_NUM,hostname);
+      rank2port(tab_struct,k,DSM_NODE_NUM,port_str);
+
+      fprintf(stdout,"connecting to : %s:%s\n", hostname, port_str);
+
+      if (-1 == (sock_inter[k] = socket_and_connect(hostname,  port_str))){
+         fprintf(stderr, "Could not create socket and connect properly\n");
+         ERROR_EXIT("socket_and_connect");
       }
-      int rank = DSM_NODE_ID;
       /* Envoi du rang */            
-      if (send(sock_inter[k], &DSM_NODE_ID, MAX_STR, MSG_NOSIGNAL) <= 0) {
+      if (send(sock_inter[k], &DSM_NODE_ID, sizeof(int), MSG_NOSIGNAL) <= 0) {
          ERROR_EXIT("send");
       }
-      
 
    }
 
    /*test*/
+   /*
    for (int j = 0; j < DSM_NODE_NUM;j++){
-      printf(stdout,"socket accepte %i",sock_inter[j]);
+      fprintf(stdout,"socket accepte %i\n",sock_inter[j]);
    }
-   printf(stdout,"\n");
+   fprintf(stdout,"\n");
+   */
 
-
+   printf("Connection phase completed.\n");
+   sleep(5);
    
    /* Allocation des pages en tourniquet */
    for(index = 0; index < PAGE_NUMBER; index ++){	
@@ -282,12 +301,12 @@ char *dsm_init(int argc, char *argv[])
    /* mise en place du traitant de SIGSEGV */
    act.sa_flags = SA_SIGINFO; 
    act.sa_sigaction = segv_handler;
-   sigaction(SIGSEGV, &act, NULL);
+   //sigaction(SIGSEGV, &act, NULL);
    
    /* creation du thread de communication           */
    /* ce thread va attendre et traiter les requetes */
    /* des autres processus                          */
-   pthread_create(&comm_daemon, NULL, dsm_comm_daemon, NULL);
+   //pthread_create(&comm_daemon, NULL, dsm_comm_daemon, NULL);
    
    /* Adresse de début de la zone de mémoire partagée */
    return ((char *)BASE_ADDR);

@@ -15,7 +15,7 @@ EXECS = exemple
 
 default: $(EXECS)
 
-$(EXECS): %: %.o dsm.o common.o
+$(EXECS): %: %.o dsm.o common.o socket_IO.o
 
 #%.o:%.c
 #	$(CC) $(CFLAGS) -c $<
@@ -26,6 +26,9 @@ $(EXECS): %: %.o dsm.o common.o
 
 common.o : common.c common_impl.h
 	$(CLINKER) $(CCFLAGS) -o common.o -c common.c
+
+socket_IO.o : socket_IO.c socket_IO.h
+	$(CLINKER) $(CCFLAGS) -o socket_IO.o -c socket_IO.c
 
 
 clean:
