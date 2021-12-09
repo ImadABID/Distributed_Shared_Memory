@@ -68,4 +68,6 @@ void rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_st
 
 void display_connect_info(dsm_proc_conn_t *tab, int tab_size);
 
+int conn_info_get_index_by_rank(int rank);
+
 #endif
