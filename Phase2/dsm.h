@@ -61,8 +61,5 @@ pthread_t comm_daemon;
 extern int DSM_NODE_ID;
 extern int DSM_NODE_NUM;
 
-/* Tableau des sockets avec chaque processus*/
-int *sock_inter;
-
 char *dsm_init( int argc, char *argv[]);
 void  dsm_finalize( void );

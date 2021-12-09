@@ -41,6 +41,10 @@ typedef struct dsm_proc_conn dsm_proc_conn_t;
 /******************* FIN DE PARTIE NON MODIFIABLE *************/
 /**************************************************************/
 
+dsm_proc_conn_t *proc_conn_info;
+int DSM_NODE_NUM;
+int DSM_NODE_ID;
+
 /* definition du type des infos */
 /* d'identification des processus dsm */
 struct dsm_proc {
