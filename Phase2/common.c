@@ -112,7 +112,7 @@ int socket_and_connect(char *hostname, char *port) {
 void rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hostname){
 	
 	for (int j=0; j<numb_proc; j++){
-		if(rank == tab_struct[j].rank && rank < numb_proc+1){
+		if(rank == tab_struct[j].rank){
 			strcpy(hostname,tab_struct[j].machine);
 			return;
 		}
@@ -127,13 +127,13 @@ void rank2hostname(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char *hos
 void rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_str){
 
 	for (int j=0; j<numb_proc; j++){
-		if(rank == tab_struct[j].rank && rank < numb_proc+1){
+		if(rank == tab_struct[j].rank){
 			sprintf(port_str,"%hu",tab_struct[j].port_num);
 			return;
 		}
 	}
 
-	fprintf(stderr, "rank2hostname : No such rank = %d.\n", rank);
+	fprintf(stderr, "rank2port : No such rank = %d.\n", rank);
 	exit(EXIT_FAILURE);
 
 }
@@ -145,5 +145,19 @@ void display_connect_info(dsm_proc_conn_t *tab, int tab_size){
 		printf("address : %s:%hu, rank : %d, fd : %d, fd_for_exit : %d\n", tab[j].machine, tab[j].port_num, tab[j].rank, tab[j].fd, tab[j].fd_for_exit);
 		 
 	}
+
+}
+
+/* obtenir l'indice par son rang*/
+int conn_info_get_index_by_rank(int rank){
+
+	for (int j=0; j<DSM_NODE_NUM; j++){
+		if(rank == proc_conn_info[j].rank){
+			return j;
+		}
+	}
+
+	fprintf(stderr, "rank2port : No such rank = %d.\n", rank);
+	exit(EXIT_FAILURE);
 
 }
