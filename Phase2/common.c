@@ -151,13 +151,13 @@ void display_connect_info(dsm_proc_conn_t *tab, int tab_size){
 /* obtenir l'indice par son rang*/
 int conn_info_get_index_by_rank(int rank){
 
-	for (int j=0; j<DSM_NODE_NUM; j++){
-		if(rank == proc_conn_info[j].rank){
-			return j;
-		}
-	}
+	// for (int j=0; j<DSM_NODE_NUM; j++){
+	// 	if(rank == proc_conn_info[j].rank){
+	// 		return j;
+	// 	}
+	// }
 
-	fprintf(stderr, "rank2port : No such rank = %d.\n", rank);
-	exit(EXIT_FAILURE);
-
+	// fprintf(stderr, "rank2port : No such rank = %d.\n", rank);
+	// exit(EXIT_FAILURE);
+	return rank;
 }

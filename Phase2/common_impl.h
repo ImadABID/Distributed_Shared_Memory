@@ -42,8 +42,11 @@ typedef struct dsm_proc_conn dsm_proc_conn_t;
 /**************************************************************/
 
 dsm_proc_conn_t *proc_conn_info;
-int DSM_NODE_NUM;
-int DSM_NODE_ID;
+int DSM_NODE_NUM; /* nombre de processus dsm */
+int DSM_NODE_ID; /* rang (= numero) du processus */ 
+
+int dsmexec_fd; /* socket entre dsmexec et ce processus distant */
+int master_fd; /* socket d'écoute avec les autres processus distants */
 
 /* definition du type des infos */
 /* d'identification des processus dsm */
