@@ -305,7 +305,7 @@ char *dsm_init(int argc, char *argv[])
 
 void dsm_finalize( void )
 {
-   fflush(stdout);
+   
    /* fermer proprement les connexions avec les autres processus */
 
    /*fermer les sockets entre les processus distants*/
@@ -316,12 +316,15 @@ void dsm_finalize( void )
          close(proc_conn_info[j].fd);
       }
    }
-   close(dsmexec_fd);
    close(master_fd);
+
+   fflush(stdout);
+   fflush(stderr);
+   close(dsmexec_fd);
 
    /* terminer correctement le thread de communication */
    /* on a pas besoin de la valeur de retour pour le moment on a fait :   */
-   pthread_detach(comm_daemon); 
+   pthread_detach(comm_daemon);
 
    /* libérer les mémoires allouées */
    free(proc_conn_info);
