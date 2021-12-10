@@ -1,9 +1,9 @@
 #include "dsm.h"
 #include "common_impl.h"
-#include "socket_IO.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <poll.h>
 
 
 
@@ -85,45 +85,100 @@ static void dsm_free_page( int numpage )
 
 static void *dsm_comm_daemon( void *arg)
 {  
+   struct pollfd pollfds[DSM_NODE_NUM-1];
+   int i = 0;
+   
+   for (int j=0; j < DSM_NODE_NUM; j++){
+
+      if(j != DSM_NODE_ID){
+         pollfds[i].fd = proc_conn_info[j].fd;
+         pollfds[i].events = POLLIN;
+         pollfds[i].revents = 0;
+         i++;
+      }
+   }
+
+   dsm_req_type_t req_type;
+
    while(1)
      {
-	/* a modifier */
-	printf("[%i] Waiting for incoming reqs \n", DSM_NODE_ID);
-	sleep(2);
+      /* a modifier */
+      
+      if (-1 == poll(pollfds, DSM_NODE_NUM-1, -1)) {
+			perror("Poll");
+		}
+
+      for (int j = 0; j < DSM_NODE_NUM-1; j++){
+
+         if (pollfds[j].revents & POLLIN){
+            
+            
+
+         }
+
+
+
+      }
+
+
      }
    return NULL;
 }
 
-static int dsm_send(int dest,void *buf,size_t size)
+void dsm_send(int sckt, char *buff, size_t size)
 {
    /* a completer */
-   char * buff = (char *)buf;
    int ret = 0, offset = 0;
+   int max_attempts = 10;
+    int attempts=0;
+
 	while (offset != size) {
-		if (-1 == (ret = send(proc_conn_info[dest].fd, buff + offset, size - offset,MSG_NOSIGNAL))) {
-			perror("send");
-			return -1;
+		if (-1 == (ret = write(proc_conn_info[sckt].fd, buff + offset, size - offset))) {
+			perror("write");
+			exit(EXIT_FAILURE);
 		}
+      if(ret == 0){
+         attempts++;
+         if(attempts == max_attempts){
+            fprintf(stderr, "dsm_send : Max attempts reached.\n");
+            exit(EXIT_FAILURE);
+         }
+      }else{
+         attempts = 0;
+      }
 		offset += ret;
 	}
 	return offset;
 }
 
-static int dsm_recv(int from,void *buf,size_t size)
-{
-   /* a completer */
-   char * buff = (char *)buf;
-   int ret = 0;
-	int offset = 0;
-	while (offset != size) {
-		ret = recv(proc_conn_info[from].fd, buff + offset, size - offset,MSG_NOSIGNAL);
-		if (-1 == ret) {
-			perror("recv");
-         return -1;
-		}
-		offset += ret;
-	}
-	return offset;
+void dsm_recv(int sckt, char * buffer, size_t size_p){
+
+    //Receiving data
+    int treated_size = 0;
+    char *data_cursor = buffer;
+    int err;
+    int max_attempts = 10;
+    int attempts=0;
+
+    while(treated_size < size_p){
+        err = read(sckt, data_cursor, size_p-treated_size);
+        if(err == -1){
+            perror("read");
+            exit(EXIT_FAILURE);
+        }
+        treated_size+=err;
+        data_cursor+=err;
+        if(err == 0){
+            if(attempts == max_attempts){
+                fprintf(stderr, "dsm_recv : Max attempts reached.\n");
+                exit(EXIT_FAILURE);
+            }
+            attempts ++;
+        }else{
+            attempts = 0;
+        }
+    }
+
 }
 
 static void dsm_handler(int page_num)
@@ -135,13 +190,14 @@ static void dsm_handler(int page_num)
 
    /* send request type */
    dsm_req_type_t req_type = DSM_REQ;
-   dsm_send(owner_rank,&req_type,sizeof(dsm_req_type_t));
+   int conn_info_i = conn_info_get_index_by_rank(owner_rank);
+   dsm_send(proc_conn_info[conn_info_i].fd, (char *) &req_type, sizeof(dsm_req_type_t));
 
    /*send struct info*/
    dsm_req_t dsm_req;
    dsm_req.page_num = page_num;
    dsm_req.source = DSM_NODE_ID;
-   dsm_send(owner_rank,&dsm_req,sizeof(dsm_req_t));
+   dsm_send(proc_conn_info[conn_info_i].fd, (char *) &dsm_req, sizeof(dsm_req_t));
 
    /*recv page*/
    
@@ -210,7 +266,7 @@ char *dsm_init(int argc, char *argv[])
    /* nom de machine, numero de port, etc.               */
    proc_conn_info = malloc(DSM_NODE_NUM * sizeof(dsm_proc_conn_t));
 
-   receive_data(dsmexec_fd, (char *) proc_conn_info, DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
+   dsm_recv(dsmexec_fd, (char *) proc_conn_info, DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
 
    /*
    memset(proc_conn_info,0,DSM_NODE_NUM*sizeof(dsm_proc_conn_t));
@@ -297,7 +353,7 @@ char *dsm_init(int argc, char *argv[])
    /* creation du thread de communication           */
    /* ce thread va attendre et traiter les requetes */
    /* des autres processus                          */
-   //pthread_create(&comm_daemon, NULL, dsm_comm_daemon, NULL);
+   pthread_create(&comm_daemon, NULL, dsm_comm_daemon, NULL);
    
    /* Adresse de début de la zone de mémoire partagée */
    return ((char *)BASE_ADDR);
