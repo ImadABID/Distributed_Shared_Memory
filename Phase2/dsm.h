@@ -1,3 +1,6 @@
+#ifndef __DSM_H__
+#define __DSM_H__
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -5,6 +8,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include "common_impl.h"
 
 
 
@@ -56,10 +60,30 @@ typedef struct
    int page_num;
 } dsm_req_t;
 
+typedef struct
+{
+   size_t taille; // dépend de req_type
+   dsm_req_type_t req_type;
+   int page_num;
+   
+}dsm_msg_header_t;
+
+
 
 pthread_t comm_daemon;
-extern int DSM_NODE_ID;
-extern int DSM_NODE_NUM;
+
+dsm_proc_conn_t *proc_conn_info;
+
+int DSM_NODE_NUM; /* nombre de processus dsm */
+int DSM_NODE_ID; /* rang (= numero) du processus */ 
+
+int dsmexec_fd; /* socket entre dsmexec et ce processus distant */
+int master_fd; /* socket d'écoute avec les autres processus distants */
+
+pthread_mutex_t available_page;
+
 
 char *dsm_init( int argc, char *argv[]);
 void  dsm_finalize( void );
+
+#endif

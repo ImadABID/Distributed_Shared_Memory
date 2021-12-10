@@ -41,12 +41,6 @@ typedef struct dsm_proc_conn dsm_proc_conn_t;
 /******************* FIN DE PARTIE NON MODIFIABLE *************/
 /**************************************************************/
 
-dsm_proc_conn_t *proc_conn_info;
-int DSM_NODE_NUM; /* nombre de processus dsm */
-int DSM_NODE_ID; /* rang (= numero) du processus */ 
-
-int dsmexec_fd; /* socket entre dsmexec et ce processus distant */
-int master_fd; /* socket d'écoute avec les autres processus distants */
 
 /* definition du type des infos */
 /* d'identification des processus dsm */
@@ -76,5 +70,7 @@ void rank2port(dsm_proc_conn_t tab_struct[],int rank,int numb_proc,char* port_st
 void display_connect_info(dsm_proc_conn_t *tab, int tab_size);
 
 int conn_info_get_index_by_rank(int rank);
+
+int conn_info_get_index_by_fd(int fd);
 
 #endif
