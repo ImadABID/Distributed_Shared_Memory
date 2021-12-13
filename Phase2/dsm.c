@@ -158,6 +158,9 @@ static void dsm_free_page( int numpage )
 
 static void *dsm_comm_daemon( void *arg)
 {
+
+   int active_procs_but_me = DSM_NODE_NUM-1;
+
    struct pollfd pollfds[DSM_NODE_NUM-1];
    int i = 0;
 
@@ -172,10 +175,6 @@ static void *dsm_comm_daemon( void *arg)
       }
    }
 
-   for (int j=0; j < DSM_NODE_NUM-1; j++){
-
-      printf("POLLFDS : FD = %i\t EVENT = %i\t REVENT = %i\n",pollfds[j].fd,pollfds[i].events,pollfds[i].revents);
-   }
    dsm_msg_header_t header_msg_recv;
    dsm_msg_header_t header_msg_send;
    dsm_page_info_t page_info;
@@ -183,48 +182,44 @@ static void *dsm_comm_daemon( void *arg)
    while(1){
       /* a modifier */
 
-      if (-1 == poll(pollfds, DSM_NODE_NUM-1, 1000)) {
+      if (-1 == poll(pollfds, DSM_NODE_NUM-1, 500)) {
 			perror("Poll");
 		}
+
+      // Daemon exit condition
+      pthread_mutex_lock(&finalize_mutex);
+      if(finalize && active_procs_but_me <= 0){
+         return NULL;
+      }
+      pthread_mutex_unlock(&finalize_mutex);
       
       for (int j = 0; j < DSM_NODE_NUM-1; j++){
-         printf("POLLFDS : REVENT = %i\n",pollfds[j].revents);
+
 
          if (pollfds[j].fd != -1 && pollfds[j].revents & POLLIN){
 
-            
-
-            printf("RECVING  header FROM : %i\n",pollfds[j].fd);
             /* réception du header */
             dsm_recv(pollfds[j].fd,(char*) &header_msg_recv,sizeof(dsm_msg_header_t),"header_recv");
 
-            printf("header RECEEEVED !\n");
             switch (header_msg_recv.req_type){
 
             case DSM_REQ:
                
-
-               printf("SENDING header PAGE to: %i\n",pollfds[j].fd);
                /* envoi du header */
                header_msg_send.page_num = header_msg_recv.page_num; // pour l'envoyer au deamon
                header_msg_send.req_type = DSM_PAGE;
                header_msg_send.taille = PAGE_SIZE;
                dsm_send(pollfds[j].fd,(char*) &header_msg_send,sizeof(dsm_msg_header_t),"header_send");
 
-               printf("SENt header PAGE to: %i\n",pollfds[j].fd);
+
                /* envoi des informations de la page*/
                page_info.owner = table_page[header_msg_recv.page_num].owner;
                page_info.status = table_page[header_msg_recv.page_num].status;
 
-               printf("SENDING INFO PAGE to: %i\n",pollfds[j].fd);
                dsm_send(pollfds[j].fd,(char*) &page_info,sizeof(dsm_page_info_t),"page_info");
-               printf("SENt INFO PAGE to: %i\n",pollfds[j].fd);
 
-               printf("SENDING PAGE to: %i\n",pollfds[j].fd);
                /* envoi de la page*/
                dsm_send(pollfds[j].fd,(char*)num2address(header_msg_send.page_num),PAGE_SIZE,"page_send");
-
-               printf("SENt PAGE to: %i\n",pollfds[j].fd);
 
                /* Tmp solution update table_page */
                table_page[header_msg_send.page_num].owner = proc_conn_info[conn_info_get_index_by_fd(pollfds[j].fd)].rank;
@@ -236,25 +231,24 @@ static void *dsm_comm_daemon( void *arg)
 
             case DSM_PAGE:
 
-               printf("RECEIVINGINFO PAGE from: %i\n",pollfds[j].fd);
                /* réception des informations de la page*/
                dsm_recv(pollfds[j].fd,(char*) &page_info,sizeof(dsm_page_info_t),"info_page");
                table_page[header_msg_recv.page_num].owner = DSM_NODE_ID;
                table_page[header_msg_recv.page_num].status = page_info.status;
 
-               printf("RECEIVEed INFO PAGE from: %i\n",pollfds[j].fd);
                /* Allocation de la page */
                dsm_alloc_page(header_msg_recv.page_num);
 
-               printf("RECEIVING PAGE from: %i\n",pollfds[j].fd);
                /* réception de la page */
                dsm_recv(pollfds[j].fd,(char*)num2address(header_msg_recv.page_num),PAGE_SIZE,"page_recv");
-
-               printf("RECEIVEed PAGE from: %i\n",pollfds[j].fd);
 
                /*signaler la disponibilité de la page*/
                pthread_mutex_unlock(&available_page);
 
+               break;
+            
+            case DSM_FINALIZE:
+               active_procs_but_me--;
                break;
 
             default:
@@ -280,7 +274,7 @@ static void dsm_handler(int page_num)
 {
 
    /* A modifier */
-   printf("[%i] FAULTY  ACCESS !!! \n",DSM_NODE_ID);
+   //printf("[%i] FAULTY  ACCESS !!! \n",DSM_NODE_ID);
    dsm_page_owner_t owner_rank = get_owner(page_num);
 
    if(owner_rank == DSM_NODE_ID){
@@ -295,9 +289,8 @@ static void dsm_handler(int page_num)
    header_msg.taille = 0;
 
    int conn_info_i = conn_info_get_index_by_rank(owner_rank);
-   printf("socket info : %i de l'indice : %i du rang : %i\n",proc_conn_info[conn_info_i].fd,conn_info_i,owner_rank);
+   
    dsm_send(proc_conn_info[conn_info_i].fd, (char *) &header_msg, sizeof(dsm_msg_header_t),"dsm_page_req");
-   printf("SENDING PAGE REQUEST TO: %i:%i\n",proc_conn_info[conn_info_i].fd,proc_conn_info[conn_info_i].rank);
 
    /*attente de la page*/
    pthread_mutex_lock(&available_page);
@@ -382,7 +375,7 @@ char *dsm_init(int argc, char *argv[])
 
    //display_connect_info(proc_conn_info, DSM_NODE_NUM);
 
-   printf("connect/accept with all process.\n");
+
    /* initialisation des connexions              */
    /* avec les autres processus : connect/accept */
 
@@ -397,8 +390,6 @@ char *dsm_init(int argc, char *argv[])
          ERROR_EXIT("Accept");
       }
 
-      //csin.sin_addr n'est pas un char *.
-      //fprintf(stdout,"addr :%s\n",csin.sin_addr);
 
       /* recevoir le rang */
       int rank;
@@ -408,7 +399,6 @@ char *dsm_init(int argc, char *argv[])
 
       proc_conn_info[conn_info_get_index_by_rank(rank)].fd = sock_fd;
 
-      fprintf(stdout,"proc with rank %d was accepted, socket given : %i\n", rank,proc_conn_info[conn_info_get_index_by_rank(rank)].fd);
    }
 
    /* on se connecte avec les autres processus dsm de rang supérieur*/
@@ -429,19 +419,14 @@ char *dsm_init(int argc, char *argv[])
          ERROR_EXIT("send");
       }
 
-      fprintf(stdout,"connected to : %s:%s, with socket : %i\n", hostname, port_str,proc_conn_info[k].fd);
-
    }
 
    /*test*/
 
-   for (int j = 0; j < DSM_NODE_NUM;j++){
-      fprintf(stdout,"RANK = %i\t SOCKET = %i\n",proc_conn_info[j].rank,proc_conn_info[j].fd);
-   }
-   fprintf(stdout,"\n");
-
-
-   printf("Connection phase completed.\n");
+   // for (int j = 0; j < DSM_NODE_NUM;j++){
+   //    fprintf(stdout,"RANK = %i\t SOCKET = %i\n",proc_conn_info[j].rank,proc_conn_info[j].fd);
+   // }
+   // fprintf(stdout,"\n");
 
 
    /* Allocation des pages en tourniquet */
@@ -452,9 +437,13 @@ char *dsm_init(int argc, char *argv[])
      
    }
 
-   /* initialisation du mutex */
+   /* initialisation des mutexes */
+
    pthread_mutex_init(&available_page, NULL);
    pthread_mutex_lock(&available_page);
+
+   pthread_mutex_init(&finalize_mutex, NULL);
+   finalize = 0;
 
    /* mise en place du traitant de SIGSEGV */
    act.sa_flags = SA_SIGINFO;
@@ -475,10 +464,31 @@ void dsm_finalize( void )
 
    fflush(stdout);
    fflush(stderr);
-   sleep(40-10*DSM_NODE_ID);
-   fflush(stdout);
-   fflush(stderr);
+
    /* fermer proprement les connexions avec les autres processus */
+
+      /* Notifying other process that this process has finished*/
+   dsm_msg_header_t header_msg;
+   header_msg.page_num = -1;
+   header_msg.req_type = DSM_FINALIZE;
+   header_msg.taille = 0;
+
+   for(int i = 0; i < DSM_NODE_NUM; i++){
+      if(proc_conn_info[i].rank != DSM_NODE_ID){
+         dsm_send(proc_conn_info[i].fd, (char *) &header_msg, sizeof(dsm_msg_header_t), "dsm_finalize");
+      }
+   }
+
+      /* Notifying comme daemon that this process has finished*/
+   pthread_mutex_lock(&finalize_mutex);
+   finalize = 1;
+   pthread_mutex_unlock(&finalize_mutex);
+
+   /* terminer correctement le thread de communication */
+   /* Waiting for other process */
+   void *comm_daemon_return_val;
+   pthread_join(comm_daemon, &comm_daemon_return_val);
+
 
    /*fermer les sockets entre les processus distants*/
    for(int j = 0; j < DSM_NODE_NUM; j++){
@@ -488,15 +498,15 @@ void dsm_finalize( void )
          close(proc_conn_info[j].fd);
       }
    }
-   close(master_fd);
 
+   fflush(stdout);
+   fflush(stderr);
+   
+   close(master_fd);
    close(dsmexec_fd);
 
-   /* terminer correctement le thread de communication */
-   /* on a pas besoin de la valeur de retour pour le moment on a fait :   */
-   pthread_detach(comm_daemon);
-
    pthread_mutex_destroy(&available_page);
+   pthread_mutex_destroy(&finalize_mutex);
 
    /* libérer les mémoires allouées */
    free(proc_conn_info);

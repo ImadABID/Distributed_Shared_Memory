@@ -26,8 +26,6 @@ int main(int argc, char **argv)
        //current += 2*PAGE_SIZE;
        //current += 16*sizeof(int);
 
-       sleep(4);
-
       //*((int *)current) = 84;
        value = *((int *)current);
        printf("[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);

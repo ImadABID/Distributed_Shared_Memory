@@ -19,6 +19,7 @@
 #define PAGE_SIZE   (sysconf(_SC_PAGE_SIZE))
 #define BASE_ADDR   (TOP_ADDR - (PAGE_NUMBER * PAGE_SIZE))
 
+/* Not used */
 typedef enum
 {
    NO_ACCESS, 
@@ -80,7 +81,10 @@ int DSM_NODE_ID; /* rang (= numero) du processus */
 int dsmexec_fd; /* socket entre dsmexec et ce processus distant */
 int master_fd; /* socket d'écoute avec les autres processus distants */
 
-pthread_mutex_t available_page;
+pthread_mutex_t available_page;  // Can be locked when the page is received by comm deamon.
+
+pthread_mutex_t finalize_mutex;
+char finalize;
 
 
 char *dsm_init( int argc, char *argv[]);
