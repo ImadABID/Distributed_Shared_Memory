@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 
    if (DSM_NODE_ID == 0)
      {
-      //current += 4*sizeof(int);
+      current += 4*sizeof(int);
 
       *((int *)current) = 84;
 
@@ -23,8 +23,8 @@ int main(int argc, char **argv)
      }
    else if (DSM_NODE_ID == 1)
      {
-       //current += 2*PAGE_SIZE;
-       //current += 16*sizeof(int);
+      //current += 2*PAGE_SIZE;
+      current += 4*sizeof(int);
 
       //*((int *)current) = 84;
        value = *((int *)current);

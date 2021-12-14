@@ -95,9 +95,12 @@ int socket_and_connect(char *hostname, char *port) {
 	while (tmp != NULL) {
 		if (tmp->ai_addr->sa_family == AF_INET) {
 
-			if (-1 == connect(sock_fd, tmp->ai_addr, tmp->ai_addrlen)) {
-				perror("Connect");
-				exit(EXIT_FAILURE);
+			char try_again = 1;
+			while (try_again){
+				try_again = 0;
+				if (-1 == connect(sock_fd, tmp->ai_addr, tmp->ai_addrlen)) {
+					try_again = 1;
+				}
 			}
 			freeaddrinfo(res);
 			return sock_fd;

@@ -414,7 +414,6 @@ char *dsm_init(int argc, char *argv[])
       rank2hostname(proc_conn_info,k,DSM_NODE_NUM,hostname);
       rank2port(proc_conn_info,k,DSM_NODE_NUM,port_str);
 
-
       if (-1 == (proc_conn_info[k].fd = socket_and_connect(hostname,  port_str))){
          fprintf(stderr, "Could not create socket and connect properly\n");
          ERROR_EXIT("socket_and_connect");
