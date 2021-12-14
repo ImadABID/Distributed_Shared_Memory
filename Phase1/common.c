@@ -73,6 +73,56 @@ int socket_listen_and_bind(int Nb_proc, ushort* port) {
 	return listen_fd;
 }
 
+int socket_bind(int Nb_proc, ushort* port) {
+	int listen_fd = -1;
+	if (-1 == (listen_fd = socket(AF_INET, SOCK_STREAM, 0))) {
+		perror("Socket");
+		exit(EXIT_FAILURE);
+	}
+	printf("Listen socket descriptor %d\n", listen_fd);
+
+	int yes = 1;
+	if (-1 == setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))) {
+		perror("setsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	struct addrinfo indices;
+	memset(&indices, 0, sizeof(struct addrinfo));
+	indices.ai_family = AF_INET;
+	indices.ai_socktype = SOCK_STREAM; //TCP
+	indices.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+	struct addrinfo *res, *tmp;
+
+
+	int err = 0;
+	if (0 != (err = getaddrinfo("0.0.0.0",NULL, &indices, &res))) {
+		errx(1, "%s", gai_strerror(err));
+	}
+
+	tmp = res;
+	while (tmp != NULL) {
+		if (tmp->ai_family == AF_INET) {
+			
+			if (-1 == bind(listen_fd, tmp->ai_addr, tmp->ai_addrlen)) {
+				perror("Binding");
+			}
+            struct sockaddr_in sin;
+            socklen_t len = sizeof(sin);
+            if (getsockname(listen_fd, (struct sockaddr *)&sin, &len) == -1)
+                perror("getsockname");
+
+			*port = ntohs(sin.sin_port);
+			freeaddrinfo(res);
+			return listen_fd;
+		}
+		tmp = tmp->ai_next;
+		
+	}
+	freeaddrinfo(res);
+	return listen_fd;
+}
+
 int socket_and_connect(char *hostname, char *port) {
 	int sock_fd = -1;
 	// Création de la socket

@@ -347,6 +347,7 @@ char *dsm_init(int argc, char *argv[])
    int dsmexec_fd = atoi(getenv("DSMEXEC_FD"));
    int master_fd = atoi(getenv("MASTER_FD"));
 
+
    /* reception du nombre de processus dsm envoye */
    /* par le lanceur de programmes (DSM_NODE_NUM) */
 	if (recv(dsmexec_fd, &DSM_NODE_NUM, sizeof(int), 0) <= 0) {
@@ -380,6 +381,10 @@ char *dsm_init(int argc, char *argv[])
    /* avec les autres processus : connect/accept */
 
    /* il faut éviter les doubles connect de la part de deux processus*/
+
+   if (-1 == listen(master_fd, DSM_NODE_NUM)) {
+				perror("Listen");
+			}
 
    /* on accepte les connexions des autres processus dsm de rang inférieur */
    for(int j = 0; j < DSM_NODE_ID; j++){

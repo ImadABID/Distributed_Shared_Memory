@@ -48,7 +48,7 @@ int main(int argc, char **argv)
    /* connexions avec les autres processus dsm */
    int listen_fd = -1;
    unsigned short port;
-   if (-1 == (listen_fd = socket_listen_and_bind(64,&port))) {
+   if (-1 == (listen_fd = socket_bind(64,&port))) {
       printf("Could not create, bind and listen properly\n");
       return 1;
    }
