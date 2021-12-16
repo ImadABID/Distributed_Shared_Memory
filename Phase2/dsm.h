@@ -51,6 +51,7 @@ typedef enum
    DSM_NO_TYPE = -1,
    DSM_REQ,
    DSM_PAGE,
+   DSM_UPDATE,
    DSM_NREQ,
    DSM_FINALIZE
 } dsm_req_type_t;
@@ -85,6 +86,9 @@ pthread_mutex_t available_page;  // Can be locked when the page is received by c
 
 pthread_mutex_t finalize_mutex;
 char finalize;
+
+pthread_mutex_t requested_page_mutex;
+int requested_page;
 
 
 char *dsm_init( int argc, char *argv[]);

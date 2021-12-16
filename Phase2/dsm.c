@@ -89,13 +89,12 @@ void dsm_send(int sckt, char *buff, size_t size,char*err_msg)
 {
    /* a completer */
    int ret = 0, offset = 0;
-   int max_attempts = 1000000;
+   int max_attempts = 10000;
     int attempts=0;
 
 	while (offset != size) {
 		if (-1 == (ret = write(sckt, buff + offset, size - offset))) {
 			perror(err_msg);
-
 			exit(EXIT_FAILURE);
 		}
       if(ret == 0){
@@ -111,33 +110,38 @@ void dsm_send(int sckt, char *buff, size_t size,char*err_msg)
 	}
 }
 
-void dsm_recv(int sckt, char * buffer, size_t size_p,char*err_msg){
+int dsm_recv(int sckt, char * buffer, size_t size_p,char*err_msg){
 
-    //Receiving data
-    int treated_size = 0;
-    char *data_cursor = buffer;
-    int err;
-    int max_attempts = 1000000;
-    int attempts=0;
+   //Receiving data
+   int treated_size = 0;
+   char *data_cursor = buffer;
+   int err;
+   int max_attempts = 10000;
+   int attempts=0;
 
-    while(treated_size < size_p){
-        err = read(sckt, data_cursor, size_p-treated_size);
-        if(err == -1){
-            perror(err_msg);
-            exit(EXIT_FAILURE);
-        }
-        treated_size+=err;
-        data_cursor+=err;
-        if(err == 0){
-            attempts ++;
-            if(attempts == max_attempts){
-                fprintf(stderr, "dsm_recv : Max attempts reached for %s\n",err_msg);
-                exit(EXIT_FAILURE);
-            }
-        }else{
-            attempts = 0;
-        }
-    }
+   while(treated_size < size_p){
+      err = read(sckt, data_cursor, size_p-treated_size);
+      if(err == -1){
+         perror(err_msg);
+         exit(EXIT_FAILURE);
+      }
+      treated_size+=err;
+      data_cursor+=err;
+      if(err == 0){
+         attempts ++;
+         if(attempts == max_attempts){
+               buffer[treated_size] = '\0';
+               //fprintf(stderr, "dsm_recv : Max attempts reached for %s. data(%d octes):%s\n",err_msg, treated_size, buffer);
+               //exit(EXIT_FAILURE);
+               return 0;
+
+         }
+      }else{
+         attempts = 0;
+      }
+   }
+
+   return 1;
 
 }
 
@@ -159,12 +163,15 @@ static void dsm_free_page( int numpage )
 static void *dsm_comm_daemon( void *arg)
 {
 
+   const int poll_timeout = 500;       // micro secondes
+   const int receiving_timeout = 4;   // multiple of poll_timeout
+   int receiving_time_counter = 0;     // multiple of poll_timeout
+
    int active_procs_but_me = DSM_NODE_NUM-1;
 
    struct pollfd pollfds[DSM_NODE_NUM-1];
    int i = 0;
-
-   for (int j=0; j < DSM_NODE_NUM; j++){
+  for (int j=0; j < DSM_NODE_NUM; j++){
       
       if(j != DSM_NODE_ID){
          
@@ -177,14 +184,22 @@ static void *dsm_comm_daemon( void *arg)
 
    dsm_msg_header_t header_msg_recv;
    dsm_msg_header_t header_msg_send;
-   dsm_page_info_t page_info;
+   dsm_req_type_t page_info;
 
    while(1){
-      /* a modifier */
 
-      if (-1 == poll(pollfds, DSM_NODE_NUM-1, 500)) {
+      if (-1 == poll(pollfds, DSM_NODE_NUM-1, poll_timeout)) {
 			perror("Poll");
 		}
+
+      // Verifying receiving_timeout
+      receiving_time_counter++;
+      if(receiving_time_counter == receiving_timeout){
+
+         /*Try again*/
+         receiving_time_counter = 0;
+         pthread_mutex_unlock(&available_page);
+      }
 
       // Daemon exit condition
       pthread_mutex_lock(&finalize_mutex);
@@ -199,70 +214,129 @@ static void *dsm_comm_daemon( void *arg)
          if (pollfds[j].fd != -1 && pollfds[j].revents & POLLIN){
 
             /* réception du header */
-            dsm_recv(pollfds[j].fd,(char*) &header_msg_recv,sizeof(dsm_msg_header_t),"header_recv");
+            if(! dsm_recv(pollfds[j].fd,(char*) &header_msg_recv,sizeof(dsm_msg_header_t),"header_recv")){
+               pollfds[j].revents = 0;
+               continue;
+            }
 
             switch (header_msg_recv.req_type){
 
-            case DSM_REQ:
+               case DSM_REQ:
+
+                  /*Verify if I am the owner of the page*/
+                  if(table_page[header_msg_send.page_num].owner == DSM_NODE_ID){
+
+                     /* envoi du header */
+                     header_msg_send.page_num = header_msg_recv.page_num; // pour l'envoyer au deamon
+                     header_msg_send.req_type = DSM_PAGE;
+                     header_msg_send.taille = PAGE_SIZE;
+                     dsm_send(pollfds[j].fd,(char*) &header_msg_send,sizeof(dsm_msg_header_t),"header_send");
+
+                     /* envoi des informations de la page*/
+                     dsm_send(pollfds[j].fd,(char*) &table_page[header_msg_recv.page_num],sizeof(dsm_page_info_t),"page_info");
+
+                     /* envoi de la page*/
+                     dsm_send(pollfds[j].fd,(char*)num2address(header_msg_send.page_num), PAGE_SIZE, "page_send");
+
+                     /* Update table_page for me */
+                     table_page[header_msg_send.page_num].owner = proc_conn_info[conn_info_get_index_by_fd(pollfds[j].fd)].rank;
+                     
+                     /* libérer la page */
+                     dsm_free_page(header_msg_send.page_num);
+
+                     /* Sending page info to all procs but me & the receiver */
+
+                     header_msg_send.req_type = DSM_UPDATE;
+                     header_msg_send.taille = 0;
+
+                     for(int i = 0; i<DSM_NODE_NUM; i++){
+                        if(proc_conn_info[i].rank != DSM_NODE_ID && proc_conn_info[i].rank != pollfds[j].fd){
+                           dsm_send(proc_conn_info[i].fd, (char*) &header_msg_send, sizeof(dsm_msg_header_t), "update_page_status_header_send");
+                           dsm_send(proc_conn_info[i].fd, (char*) &table_page[header_msg_send.page_num], sizeof(dsm_page_info_t), "update_page_status_send");
+                        }
+                     }
+
+                  }
+
+                  break;
+
+               case DSM_PAGE:
+
+                  /* réception des informations de la page*/
+                  dsm_recv(pollfds[j].fd, (char*) &table_page[header_msg_recv.page_num], sizeof(dsm_page_info_t),"info_page");
+                  
+                  /* mis à jour des informations de la page*/
+                  table_page[header_msg_recv.page_num].owner = DSM_NODE_ID;
+
+                  /* Allocation de la page */
+                  dsm_alloc_page(header_msg_recv.page_num);
+
+                  /* réception de la page */
+                  dsm_recv(pollfds[j].fd,(char*)num2address(header_msg_recv.page_num),PAGE_SIZE,"page_recv");
+
+                  pthread_mutex_lock(&requested_page_mutex);
+
+                  if(requested_page == header_msg_recv.page_num){
+                     /*signaler la disponibilité de la page*/
+                     receiving_time_counter = 0;
+                     pthread_mutex_unlock(&available_page);
+                  }else{
+                     fprintf(stderr, "I am receiving an other page instead of the requested one.\n");
+                     break;
+                     //exit(EXIT_FAILURE);
+                  }
+
+                  pthread_mutex_unlock(&requested_page_mutex);
+                  
+
+                  break;
+
+               case DSM_UPDATE:
+
+                  /* I'am obliged to read the message otherwise the sender will be blocked*/
+                  dsm_recv(pollfds[j].fd, (char*) & page_info, sizeof(dsm_page_info_t), "update_info_page_receive");
+
+                  /*
+                     When it comes to my pages, I'm always right.
+                     So I ignore the update message.
+                  */
+                  if(table_page[header_msg_recv.page_num].owner != DSM_NODE_ID){
+
+                     memcpy(&table_page[header_msg_recv.page_num], &page_info, sizeof(dsm_page_info_t));
+
+                     /*
+                        Give an other chance to the main thread (re-request the page after a new seg fault)
+                        if it hasn't requested the needed page from its right owner.
+                     */
+                     pthread_mutex_lock(&requested_page_mutex);
+
+                     if(requested_page == header_msg_recv.page_num){
+                        receiving_time_counter = 0;
+                        pthread_mutex_unlock(&available_page);
+                     }
+
+                     pthread_mutex_unlock(&requested_page_mutex);
+                  }
+
+                  break;
                
-               /* envoi du header */
-               header_msg_send.page_num = header_msg_recv.page_num; // pour l'envoyer au deamon
-               header_msg_send.req_type = DSM_PAGE;
-               header_msg_send.taille = PAGE_SIZE;
-               dsm_send(pollfds[j].fd,(char*) &header_msg_send,sizeof(dsm_msg_header_t),"header_send");
+               case DSM_FINALIZE:
+                  active_procs_but_me--;
+                  break;
 
-
-               /* envoi des informations de la page*/
-               page_info.owner = table_page[header_msg_recv.page_num].owner;
-               page_info.status = table_page[header_msg_recv.page_num].status;
-
-               dsm_send(pollfds[j].fd,(char*) &page_info,sizeof(dsm_page_info_t),"page_info");
-
-               /* envoi de la page*/
-               dsm_send(pollfds[j].fd,(char*)num2address(header_msg_send.page_num),PAGE_SIZE,"page_send");
-
-               /* Tmp solution update table_page */
-               table_page[header_msg_send.page_num].owner = proc_conn_info[conn_info_get_index_by_fd(pollfds[j].fd)].rank;
-
-               /* libérer la page */
-               dsm_free_page(header_msg_send.page_num);
-
-               break;
-
-            case DSM_PAGE:
-
-               /* réception des informations de la page*/
-               dsm_recv(pollfds[j].fd,(char*) &page_info,sizeof(dsm_page_info_t),"info_page");
-               table_page[header_msg_recv.page_num].owner = DSM_NODE_ID;
-               table_page[header_msg_recv.page_num].status = page_info.status;
-
-               /* Allocation de la page */
-               dsm_alloc_page(header_msg_recv.page_num);
-
-               /* réception de la page */
-               dsm_recv(pollfds[j].fd,(char*)num2address(header_msg_recv.page_num),PAGE_SIZE,"page_recv");
-
-               /*signaler la disponibilité de la page*/
-               pthread_mutex_unlock(&available_page);
-
-               break;
-            
-            case DSM_FINALIZE:
-               active_procs_but_me--;
-               break;
-
-            default:
-               break;
+               default:
+                  break;
             }
+
          }else if(pollfds[j].revents !=0){
             pollfds[j].fd = -1;
             pollfds[j].events = 0;
             pollfds[j].revents = 0;
          }
+
          pollfds[j].revents = 0;
-            
+
       }
-         
 
    }
 
@@ -278,9 +352,14 @@ static void dsm_handler(int page_num)
    dsm_page_owner_t owner_rank = get_owner(page_num);
 
    if(owner_rank == DSM_NODE_ID){
-      fprintf(stderr,"Cannot request my own page (page_num = %d).\n", page_num);
-      exit(EXIT_FAILURE);
+      //Cannot request my own page
+      return;
    }
+
+   /*Set requested_page to the number of the page I am waiting for.*/
+   pthread_mutex_lock(&requested_page_mutex);
+   requested_page = page_num;
+   pthread_mutex_unlock(&requested_page_mutex);
 
    /* send request type */
    dsm_msg_header_t header_msg;
@@ -295,6 +374,10 @@ static void dsm_handler(int page_num)
    /*attente de la page*/
    pthread_mutex_lock(&available_page);
 
+   /*I don't any page for the moment.*/
+   pthread_mutex_lock(&requested_page_mutex);
+   requested_page = -1;
+   pthread_mutex_unlock(&requested_page_mutex);
 
 }
 
@@ -383,8 +466,8 @@ char *dsm_init(int argc, char *argv[])
    /* il faut éviter les doubles connect de la part de deux processus*/
 
    if (-1 == listen(master_fd, DSM_NODE_NUM)) {
-				perror("Listen");
-			}
+      perror("Listen");
+   }
 
    /* on accepte les connexions des autres processus dsm de rang inférieur */
    for(int j = 0; j < DSM_NODE_ID; j++){
@@ -449,6 +532,9 @@ char *dsm_init(int argc, char *argv[])
    pthread_mutex_init(&finalize_mutex, NULL);
    finalize = 0;
 
+   pthread_mutex_init(&requested_page_mutex, NULL);
+   requested_page = -1;
+
    /* mise en place du traitant de SIGSEGV */
    act.sa_flags = SA_SIGINFO;
    act.sa_sigaction = segv_handler;
@@ -511,6 +597,7 @@ void dsm_finalize( void )
 
    pthread_mutex_destroy(&available_page);
    pthread_mutex_destroy(&finalize_mutex);
+   pthread_mutex_destroy(&requested_page_mutex);
 
    /* libérer les mémoires allouées */
    free(proc_conn_info);
