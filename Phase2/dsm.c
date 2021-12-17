@@ -29,10 +29,12 @@ static int address2num( char *addr )
 
 /* cette fonction permet de recuperer l'adresse d'une page */
 /* a partir d'une adresse quelconque (dans la page)        */
+/*
 static char *address2pgaddr( char *addr )
 {
   return  (char *)(((intptr_t) addr) & ~(PAGE_SIZE-1));
 }
+*/
 
 /* fonctions pouvant etre utiles */
 static void dsm_change_info( int numpage, dsm_page_state_t state, dsm_page_owner_t owner)
@@ -55,10 +57,12 @@ static dsm_page_owner_t get_owner( int numpage)
    return table_page[numpage].owner;
 }
 
+/*
 static dsm_page_state_t get_status( int numpage)
 {
    return table_page[numpage].status;
 }
+*/
 
 /* Allocation d'une nouvelle page */
 static void dsm_alloc_page( int numpage )
@@ -146,12 +150,14 @@ int dsm_recv(int sckt, char * buffer, size_t size_p,char*err_msg){
 }
 
 /* Changement de la protection d'une page */
+/*
 static void dsm_protect_page( int numpage , int prot)
 {
    char *page_addr = num2address( numpage );
    mprotect(page_addr, PAGE_SIZE, prot);
    return;
 }
+*/
 
 static void dsm_free_page( int numpage )
 {
