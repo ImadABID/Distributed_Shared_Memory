@@ -2,23 +2,29 @@
 
 int main(int argc, char **argv)
 {
-  char *pointer;
+   char *pointer;
+   char *current;
+   int value;
 
-  pointer = dsm_init(argc,argv);
+   pointer = dsm_init(argc,argv);
+   current = pointer;
 
-  *((int *) (pointer + DSM_NODE_ID*sizeof(int))) = DSM_NODE_ID+100;
+   printf("[%i] Coucou, mon adresse de base est : %p\n", DSM_NODE_ID, pointer);
 
-  for(int i = 0; i < DSM_NODE_NUM; i++){
-    printf("%i | %i\n", i, *((int *) (pointer + i*sizeof(int))));
-  }
+   if (DSM_NODE_ID == 0)
+     {
+       current += 4*sizeof(int);
+       value = *((int *)current);
+       printf("[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
+     }
+   else if (DSM_NODE_ID == 1)
+     {
+       //current += PAGE_SIZE;
+       current += 16*sizeof(int);
 
-  *((int *) (pointer + DSM_NODE_ID*sizeof(int))) = DSM_NODE_ID+200;
-
-  for(int i = 0; i < DSM_NODE_NUM; i++){
-    printf("%i | %i\n", i, *((int *) (pointer + i*sizeof(int))));
-  }
-
-  dsm_finalize();
-
-  return 0;
+       value = *((int *)current);
+       printf("[%i] valeur de l'entier : %i\n", DSM_NODE_ID, value);
+     }
+   dsm_finalize();
+   return 1;
 }
