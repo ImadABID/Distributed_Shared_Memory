@@ -193,13 +193,15 @@ static void *dsm_comm_daemon( void *arg)
 		}
 
       // Verifying receiving_timeout
+      pthread_mutex_lock(&requested_page_mutex);
       receiving_time_counter++;
-      if(receiving_time_counter == receiving_timeout){
+      if(requested_page >= 0 && receiving_time_counter == receiving_timeout){
 
          /*Try again*/
          receiving_time_counter = 0;
          pthread_mutex_unlock(&available_page);
       }
+      pthread_mutex_unlock(&requested_page_mutex);
 
       // Daemon exit condition
       pthread_mutex_lock(&finalize_mutex);
@@ -281,7 +283,7 @@ static void *dsm_comm_daemon( void *arg)
                      receiving_time_counter = 0;
                      pthread_mutex_unlock(&available_page);
                   }else{
-                     fprintf(stderr, "I am receiving an other page instead of the requested one.\n");
+                     //fprintf(stderr, "I am receiving an other page instead of the requested one.\n");
                      break;
                      //exit(EXIT_FAILURE);
                   }
